@@ -12,7 +12,9 @@ name: Apply
 # - A reviewed change is pushed to branch portal/<change id> and opened as a
 #   pull request by the NGINX UI Catalog Submissions App, mentioning the
 #   submitter. A maintainer merges it, in the portal or here. A new listing
-#   is always reviewed. Self service changes are not accepted yet.
+#   is always reviewed.
+# - A self service change (yanking versions, revoking signers, categories) is
+#   committed to main by the Submissions App once the checks pass.
 # - The outcome goes back to the portal with an OIDC token of this run, which
 #   the portal checks against GitHub's keys, this repository and this
 #   workflow, so no shared secret is needed.
@@ -57,6 +59,8 @@ jobs:
       submitter_id: ${{ steps.draft.outputs.submitter_id }}
       tag: ${{ steps.draft.outputs.tag }}
       release_url: ${{ steps.draft.outputs.release_url }}
+      summary: ${{ steps.draft.outputs.summary }}
+      reason: ${{ steps.draft.outputs.reason }}
     steps:
       - name: Check the change id
         env:
@@ -180,9 +184,69 @@ jobs:
             const { data: pr } = await github.rest.pulls.create({ ...context.repo, title, body, head: branch, base: 'main', maintainer_can_modify: false })
             return String(pr.number)
 
+  commit:
+    name: Commit the self service change
+    needs: [draft, verify]
+    if: needs.draft.outputs.result == 'ok' && needs.verify.result == 'success' && needs.draft.outputs.class == 'self_service'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      sha: ${{ steps.commit.outputs.result }}
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SUBMIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SUBMIT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - id: commit
+        uses: actions/github-script@v9
+        env:
+          CHANGE: ${{ inputs.change }}
+          ID: ${{ needs.draft.outputs.id }}
+          ENTRY_PATH: ${{ needs.draft.outputs.path }}
+          ENTRY: ${{ needs.draft.outputs.entry }}
+          SUMMARY: ${{ needs.draft.outputs.summary }}
+          REASON: ${{ needs.draft.outputs.reason }}
+          SUBMITTER: ${{ needs.draft.outputs.submitter }}
+          SUBMITTER_ID: ${{ needs.draft.outputs.submitter_id }}
+          PORTAL_URL: ${{ vars.PORTAL_URL || 'https://portal.nginxui.com' }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          result-encoding: string
+          script: |
+            const env = process.env
+            const message = [
+              `chore(plugins): ${env.SUMMARY} of ${env.ID}`,
+              '',
+              // One line with a prefix, so the reason cannot add trailers such as Co-authored-by.
+              ...(env.REASON ? [`Reason: ${env.REASON.replace(/\s+/g, ' ').trim()}`, ''] : []),
+              `Requested by @${env.SUBMITTER} in the developer portal: ${env.PORTAL_URL}/changes/${env.CHANGE}`,
+              '',
+              `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`,
+            ].join('\n')
+            // main may move while this runs; build on its newest head.
+            for (let attempt = 0; attempt < 3; attempt++) {
+              const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
+              const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: ref.object.sha })
+              const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha,
+                tree: [{ path: env.ENTRY_PATH, mode: '100644', type: 'blob', content: env.ENTRY }] })
+              const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
+              try {
+                await github.rest.git.updateRef({ ...context.repo, ref: 'heads/main', sha: commit.sha })
+                return commit.sha
+              }
+              catch (err) {
+                if (err.status !== 422)
+                  throw err
+              }
+            }
+            throw new Error('main kept moving, the change was not committed')
+
   report:
     name: Report to the portal
-    needs: [draft, verify, publish]
+    needs: [draft, verify, publish, commit]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -202,6 +266,8 @@ jobs:
           PROBLEMS: ${{ needs.verify.outputs.problems }}
           PUBLISH: ${{ needs.publish.result }}
           PR_NUMBER: ${{ needs.publish.outputs.pr_number }}
+          COMMIT: ${{ needs.commit.result }}
+          COMMIT_SHA: ${{ needs.commit.outputs.sha }}
           PORTAL_URL: ${{ vars.PORTAL_URL || 'https://portal.nginxui.com' }}
         with:
           script: |
@@ -213,7 +279,9 @@ jobs:
               outcome = 'rejected'
             else if (env.VERIFY !== 'success')
               outcome = 'checks_failed'
-            else if (env.CLASS === 'self_service' || env.CLASS === '')
+            else if (env.CLASS === 'self_service')
+              outcome = env.COMMIT === 'success' && env.COMMIT_SHA ? 'committed' : 'failed'
+            else if (env.CLASS === '')
               outcome = 'unsupported'
             else
               outcome = env.PUBLISH === 'success' && env.PR_NUMBER ? 'opened' : 'failed'
@@ -232,6 +300,7 @@ jobs:
                 fields: env.FIELDS ? JSON.parse(env.FIELDS) : [],
                 entry: env.ENTRY ? JSON.parse(env.ENTRY) : null,
                 pr_number: env.PR_NUMBER ? Number(env.PR_NUMBER) : null,
+                commit_sha: env.COMMIT_SHA || null,
                 run_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               }),
             })

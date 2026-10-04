@@ -36,3 +36,16 @@ test('a long eligibility note is cut', () => {
   const parsed = submissionFromPayload(JSON.stringify({ ...payload, eligibility: 'x'.repeat(1000) }))
   assert.equal(parsed.eligibility.length, 300)
 })
+
+test('an entry update names the plugin, the operations and the reason', () => {
+  const parsed = submissionFromPayload(JSON.stringify({
+    kind: 'entry_update',
+    plugin_id: 'io.github.octo.geoip',
+    operations: { yank: ['1.0.0'] },
+    reason: '  Breaks the config  ',
+    submitter: { login: 'octo', id: 42 },
+  }))
+  assert.deepEqual(parsed.update, { pluginId: 'io.github.octo.geoip', operations: { yank: ['1.0.0'] }, reason: 'Breaks the config' })
+  assert.deepEqual(parsed.submitter, { login: 'octo', id: 42 })
+  assert.match(submissionFromPayload(JSON.stringify({ kind: 'entry_update', plugin_id: '../x', submitter: { login: 'octo', id: 42 } })).error, /plugin id/)
+})
