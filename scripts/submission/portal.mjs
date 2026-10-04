@@ -11,7 +11,9 @@
 // Usage: PAYLOAD='{...}' node scripts/submission/portal.mjs
 //
 // A new listing is drafted from the repository; an entry_update applies self
-// service operations (scripts/submission/operations.mjs) to the entry on main.
+// service operations (scripts/submission/operations.mjs) to the entry on main;
+// a store_update writes the store document of a catalog hosted plugin
+// (scripts/submission/store.mjs).
 //
 // Outputs: result (ok or rejected), message, id, path, drafts, entry, class,
 // fields (the classified changes as JSON), eligibility, submitter,
@@ -22,6 +24,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { classify } from '../ci/classify.mjs'
 import { draftEntry, knownCategories } from './core.mjs'
 import { applyOperations } from './operations.mjs'
+import { applyStoreUpdate } from './store.mjs'
 
 const LOGIN = /^[a-z\d](?:[a-z\d-]{0,38})$/i
 const PLUGIN_ID = /^[a-z0-9]+(\.[a-z0-9-]+)+$/
@@ -46,6 +49,22 @@ export function submissionFromPayload(text) {
         pluginId: payload.plugin_id,
         operations: payload.operations,
         reason: typeof payload.reason === 'string' ? payload.reason.trim().slice(0, 500) : '',
+      },
+      submitter: { login: submitter.login, id: submitter.id },
+      eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
+    }
+  }
+  if (payload.kind === 'store_update') {
+    if (typeof payload.plugin_id !== 'string' || !PLUGIN_ID.test(payload.plugin_id))
+      return { error: 'The plugin id is not valid.' }
+    if (!payload.doc || typeof payload.doc !== 'object' || Array.isArray(payload.doc))
+      return { error: 'The store document is not an object.' }
+    return {
+      store: {
+        pluginId: payload.plugin_id,
+        doc: payload.doc,
+        readme: typeof payload.readme === 'string' ? payload.readme : null,
+        setSource: payload.set_source ?? null,
       },
       submitter: { login: submitter.login, id: submitter.id },
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
@@ -103,6 +122,35 @@ function updateEntry(parsed) {
   setOutput('submitter_id', String(parsed.submitter.id))
 }
 
+/** Writes a store document of a catalog hosted plugin and sets the outputs. */
+function updateStore(parsed) {
+  const id = parsed.store.pluginId
+  const file = `plugins/${id}.json`
+  const entry = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
+  const docFile = `store/${id}/store.json`
+  const before = existsSync(docFile) ? JSON.parse(readFileSync(docFile, 'utf8')) : null
+  const result = applyStoreUpdate(entry, before, parsed.store)
+  if (result.error) {
+    setOutput('result', 'rejected')
+    setOutput('message', result.error)
+    return
+  }
+  console.log(`store of ${id}: ${result.summary}, ${result.class}`)
+  setOutput('result', 'ok')
+  setOutput('message', `Updated the store document of \`${id}\`: ${result.summary}.`)
+  setOutput('id', id)
+  setOutput('path', file)
+  setOutput('entry', `${JSON.stringify(result.entry, null, 2)}\n`)
+  setOutput('drafts', JSON.stringify(result.files))
+  setOutput('class', result.class)
+  setOutput('fields', JSON.stringify(result.fields))
+  setOutput('summary', result.summary)
+  setOutput('reason', '')
+  setOutput('eligibility', parsed.eligibility)
+  setOutput('submitter', parsed.submitter.login)
+  setOutput('submitter_id', String(parsed.submitter.id))
+}
+
 function setOutput(name, value) {
   const file = process.env.GITHUB_OUTPUT
   if (!file)
@@ -120,6 +168,8 @@ async function main() {
   }
   if (parsed.update)
     return updateEntry(parsed)
+  if (parsed.store)
+    return updateStore(parsed)
   const draft = await draftEntry(parsed.submission, { token: process.env.GITHUB_TOKEN })
   if (draft.rejection) {
     console.log(`rejected: ${draft.rejection}`)

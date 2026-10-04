@@ -41,13 +41,15 @@ export function reviewItems(kind, fields) {
     return ['The author of the listing asked to remove it']
   const items = []
   const touched = new Set(fields.map(item => item.field))
-  if (touched.has('name'))
+  if (touched.has('name') || touched.has('store.name'))
     items.push('The names in every language describe the plugin and claim nothing official')
   if (touched.has('author_public_key'))
     items.push('The author announced the new primary key, for example in the repository or a release')
   if (touched.has('repository_url'))
     items.push('The new repository belongs to the same author and holds the same plugin')
-  if (touched.has('homepage_url') || touched.has('icon_url'))
+  if (touched.has('store'))
+    items.push('The author moves where the store texts are read from, and the new source holds them')
+  if (touched.has('homepage_url') || touched.has('icon_url') || touched.has('store.homepage_url'))
     items.push('The new link or icon impersonates nobody')
   if (items.length === 0)
     items.push('The change matches what the author asked for in the portal')
@@ -94,11 +96,16 @@ export function prBody({ change, portalUrl, entry, before = null, fields, eligib
   lines.push(`| Developer portal | [Follow this change](${portalUrl}/changes/${change}) |`)
   lines.push('')
 
-  if (kind === 'update') {
+  const entryFields = fields.filter(item => !item.field.startsWith('store.'))
+  const storeFields = fields.filter(item => item.field.startsWith('store.'))
+  if (kind === 'update' && entryFields.length) {
     lines.push('### Changes', '', '| Field | Was | Becomes |', '| --- | --- | --- |')
-    for (const item of fields)
+    for (const item of entryFields)
       lines.push(`| \`${item.field}\` | ${shortValue(before?.[item.field])} | ${shortValue(entry?.[item.field])} |`)
     lines.push('')
+  }
+  if (storeFields.length) {
+    lines.push('### Store document', '', `In \`store/${cell(subject?.id)}/\`: ${storeFields.map(item => `\`${item.field.slice(6)}\` ${item.change}`).join(', ')}. The files are in this pull request.`, '')
   }
 
   lines.push('### Review', '', ...reviewItems(kind, fields).map(item => `- [ ] ${item}`), '')

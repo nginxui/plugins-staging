@@ -63,10 +63,12 @@ jobs:
           DRAFTS: ${{ inputs.drafts }}
         run: |
           node -e '
-            const { writeFileSync } = require("node:fs")
+            const { mkdirSync, writeFileSync } = require("node:fs")
+            const path = require("node:path")
             for (const [file, content] of Object.entries(JSON.parse(process.env.DRAFTS))) {
-              if (!/^plugins\/[a-z0-9][a-z0-9.-]*\.json$/.test(file))
+              if (!/^plugins\/[a-z0-9][a-z0-9.-]*\.json$/.test(file) && !/^store\/[a-z0-9][a-z0-9.-]*\/(store\.json|README\.md)$/.test(file))
                 throw new Error(`refusing to write ${file}`)
+              mkdirSync(path.dirname(file), { recursive: true })
               writeFileSync(file, content)
               console.log(`wrote ${file}`)
             }

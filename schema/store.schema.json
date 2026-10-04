@@ -7,10 +7,12 @@
   "additionalProperties": false,
   "properties": {
     "name": {
-      "$ref": "entry.schema.json#/$defs/localizedText"
+      "$ref": "entry.schema.json#/$defs/localizedText",
+      "description": "Proposed names by language, at most 64 characters each. They are reviewed before they are listed."
     },
     "description": {
-      "$ref": "entry.schema.json#/$defs/localizedText"
+      "$ref": "entry.schema.json#/$defs/localizedText",
+      "description": "At most 1000 characters in each language."
     },
     "homepage_url": {
       "$ref": "entry.schema.json#/$defs/httpsUrl"

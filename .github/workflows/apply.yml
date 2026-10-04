@@ -125,6 +125,7 @@ jobs:
           ID: ${{ needs.draft.outputs.id }}
           ENTRY_PATH: ${{ needs.draft.outputs.path }}
           ENTRY: ${{ needs.draft.outputs.entry }}
+          DRAFTS: ${{ needs.draft.outputs.drafts }}
           FIELDS: ${{ needs.draft.outputs.fields }}
           ELIGIBILITY: ${{ needs.draft.outputs.eligibility }}
           SUBMITTER: ${{ needs.draft.outputs.submitter }}
@@ -150,8 +151,9 @@ jobs:
 
             const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
             const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: main.object.sha })
-            const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha,
-              tree: [{ path: env.ENTRY_PATH, mode: '100644', type: 'blob', content: env.ENTRY }] })
+            // Every file the draft job wrote: the entry, and store documents.
+            const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => ({ path, mode: '100644', type: 'blob', content }))
+            const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
             const message = [title, '', `Submitted by @${env.SUBMITTER} in the developer portal: ${changeUrl}`, '',
               `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`].join('\n')
             const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
@@ -205,8 +207,7 @@ jobs:
         env:
           CHANGE: ${{ inputs.change }}
           ID: ${{ needs.draft.outputs.id }}
-          ENTRY_PATH: ${{ needs.draft.outputs.path }}
-          ENTRY: ${{ needs.draft.outputs.entry }}
+          DRAFTS: ${{ needs.draft.outputs.drafts }}
           SUMMARY: ${{ needs.draft.outputs.summary }}
           REASON: ${{ needs.draft.outputs.reason }}
           SUBMITTER: ${{ needs.draft.outputs.submitter }}
@@ -230,8 +231,8 @@ jobs:
             for (let attempt = 0; attempt < 3; attempt++) {
               const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
               const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: ref.object.sha })
-              const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha,
-                tree: [{ path: env.ENTRY_PATH, mode: '100644', type: 'blob', content: env.ENTRY }] })
+              const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => ({ path, mode: '100644', type: 'blob', content }))
+              const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
               const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
               try {
                 await github.rest.git.updateRef({ ...context.repo, ref: 'heads/main', sha: commit.sha })

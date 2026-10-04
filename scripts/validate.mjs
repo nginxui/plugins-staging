@@ -19,6 +19,7 @@ import { parsePublicKey } from './lib/minisign.mjs'
 import { buildKeyring } from './build-partners.mjs'
 import { parseGithubRepoUrl } from './ci/github.mjs'
 import { specSchema } from './lib/spec.mjs'
+import { storeProblems } from './submission/store.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PLUGINS_DIR = path.join(ROOT, 'plugins')
@@ -41,6 +42,39 @@ function ok(message) {
 
 function loadJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
+}
+
+const STORE_DIR = path.join(ROOT, 'store')
+
+/** Checks every store/<id>/store.json: it can be listed, and its entry
+ * reads the store texts from the catalog. */
+function checkStoreDocuments(entries) {
+  if (!existsSync(STORE_DIR)) {
+    ok('no store/ directory, no plugin keeps its store texts in the catalog')
+    return
+  }
+  const byId = new Map([...entries.values()].map(entry => [entry.id, entry]))
+  const dirs = readdirSync(STORE_DIR).sort()
+  for (const id of dirs) {
+    const file = path.join(STORE_DIR, id, 'store.json')
+    if (!existsSync(file)) {
+      fail(`store/${id}`, 'has no store.json')
+      continue
+    }
+    if (byId.get(id)?.store?.source !== 'catalog')
+      fail(`store/${id}`, 'its entry does not read the store texts from the catalog')
+    let doc
+    try {
+      doc = loadJson(file)
+    }
+    catch (err) {
+      fail(`store/${id}/store.json`, `invalid JSON: ${err.message}`)
+      continue
+    }
+    for (const problem of storeProblems(doc))
+      fail(`store/${id}/store.json`, problem)
+  }
+  ok(`${dirs.length} store document${dirs.length === 1 ? '' : 's'} checked`)
 }
 
 /** Schema-validates every plugins/<id>.json, returning the parsed entries
@@ -266,6 +300,7 @@ function main() {
   checkAuthorKeys(entries)
   checkRepositories(entries)
   checkBlocked(entries)
+  checkStoreDocuments(entries)
   validatePartners()
   checkKeyring()
 

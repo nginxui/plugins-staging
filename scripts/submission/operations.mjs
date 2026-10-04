@@ -6,7 +6,7 @@
 import { isSemver } from '../ci/semver.mjs'
 
 const SIGNER = /^[0-9a-f]{16}$/i
-const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories']
+const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store']
 
 /** A list of strings, or null when it is not one. */
 function strings(value) {
@@ -15,7 +15,8 @@ function strings(value) {
 
 /**
  * Applies operations to an entry. Returns { entry, summary } or { error }.
- * operations: { yank, unyank, revoke_signers, categories }, each optional.
+ * operations: { yank, unyank, revoke_signers, categories, store }, each
+ * optional. store moves the store document and classifies as reviewed.
  */
 export function applyOperations(before, operations, knownCategories) {
   if (!before)
@@ -67,6 +68,16 @@ export function applyOperations(before, operations, knownCategories) {
       return { error: 'The categories must be one to three known category ids.' }
     entry.categories = [...new Set(categories)]
     summary.push('change categories')
+  }
+
+  if (operations.store !== undefined) {
+    const store = operations.store
+    const repo = store?.source === 'repo' && (store.follow === 'branch' || store.follow === 'release') && Object.keys(store).length === 2
+    const catalog = store?.source === 'catalog' && Object.keys(store).length === 1
+    if (!repo && !catalog)
+      return { error: 'The store source is not one the schema knows.' }
+    entry.store = repo ? { source: 'repo', follow: store.follow } : { source: 'catalog' }
+    summary.push('move the store source')
   }
 
   return { entry, summary: summary.join(', ') }

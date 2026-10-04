@@ -62,3 +62,12 @@ test('text from the author can neither mention, break a table nor open a tag', (
   assert.doesNotMatch(outside, /@here/)
   assert.doesNotMatch(body, /<script>/)
 })
+
+test('a store document change lists its parts and asks to check the names', () => {
+  const body = prBody({ change: 'c_x', portalUrl: 'https://portal.example', entry: { id: 'io.x.y', name: { en: 'Y' } }, before: { id: 'io.x.y', name: { en: 'Y' } }, fields: [{ field: 'store.name', change: 'changed', class: 'reviewed' }, { field: 'store.description', change: 'added', class: 'self_service' }], eligibility: '', submitter: 'octo', preview: '' })
+  assert.match(body, /### Store document/)
+  assert.match(body, /`name` changed, `description` added/)
+  assert.match(body, /claim nothing official/)
+  assert.doesNotMatch(body, /### Changes/)
+})
+
