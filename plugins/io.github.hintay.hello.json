@@ -11,5 +11,8 @@
     "templates"
   ],
   "license": "MIT",
-  "trust": "community"
+  "trust": "community",
+  "yanked": [
+    "0.1.0"
+  ]
 }
