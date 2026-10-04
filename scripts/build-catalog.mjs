@@ -61,6 +61,7 @@ import { compareSemver, isSemver } from './ci/semver.mjs'
 import { deriveListing, displayRelease, listingChanges } from './ci/listing.mjs'
 import { mirrorConfig, mirrorScreenshots } from './ci/media-mirror.mjs'
 import { readStoreSource } from './ci/store-source.mjs'
+import { vendorReleases } from './ci/vendor-feed.mjs'
 import { verifyRelease } from './ci/verify-release.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { SPEC_SCHEMAS, specSchema } from './lib/spec.mjs'
@@ -199,6 +200,20 @@ async function entryReleases(entry, published, { token, verifyNewest, failed, vi
       console.warn(`::warning title=${entry.id}::${version} is read again, its packages are pinned anew`)
       pinned.delete(version)
     }
+  }
+  // A vendor distributed plugin has no GitHub releases to read.
+  if (entry.distribution?.type === 'vendor') {
+    const vendor = await vendorReleases(entry, published, { failed, visited })
+    const yankedVendor = new Set(entry.yanked ?? [])
+    const revokedVendor = new Set((entry.revoked_signers ?? []).map(id => id.toUpperCase()))
+    const sortedVendor = sortReleases(vendor.releases)
+    for (const release of sortedVendor) {
+      if (yankedVendor.has(release.version) || revokedVendor.has(release.signer))
+        release.yanked = true
+      else
+        delete release.yanked
+    }
+    return { ...vendor, releases: keepRecentNotes(sortedVendor).map(ordered) }
   }
   const tags = new Map()
   const icons = new Map()
@@ -376,7 +391,7 @@ function ordered(release) {
 }
 
 // Member order of a catalog entry, so every build serializes it alike.
-const ENTRY_KEYS = ['id', 'name', 'description', 'author', 'author_public_key', 'homepage_url', 'repository_url', 'readme_url', 'icon_url', 'screenshots', 'categories', 'capabilities', 'license', 'trust', 'revoked_signers']
+const ENTRY_KEYS = ['id', 'name', 'description', 'author', 'author_public_key', 'homepage_url', 'repository_url', 'readme_url', 'icon_url', 'screenshots', 'categories', 'capabilities', 'license', 'trust', 'commercial', 'revoked_signers']
 
 /** The catalog entry: the source entry without yanked, with the listing its
  * display release gives, what it provides and its releases. */

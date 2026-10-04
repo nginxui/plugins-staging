@@ -365,6 +365,15 @@ function renderDetail(plugin, locale, index, headingTag) {
     info.push([t.homepage, `<a href="${escapeHtml(homepage)}" rel="noopener">${escapeHtml(homepage)}</a>`])
   if (repository)
     info.push([t.repository, `<a href="${escapeHtml(repository)}" rel="noopener">${escapeHtml(repository.replace(/^https:\/\//, ''))}</a>`])
+  const commercial = plugin.commercial
+  const purchase = safeUrl(commercial?.purchase_url)
+  if (commercial) {
+    info.push([t.price, escapeHtml(localized(commercial.pricing, locale))])
+    if (commercial.trial_days)
+      info.push([t.trial, escapeHtml(t.trialDays(commercial.trial_days))])
+    if (purchase)
+      info.push([t.buy, `<a href="${escapeHtml(purchase)}" rel="noopener">${escapeHtml(purchase.replace(/^https:\/\//, ''))}</a>`])
+  }
 
   const screenshots = renderScreenshots(plugin, locale)
   const versions = renderVersions(plugin, d, t)
@@ -374,7 +383,7 @@ function renderDetail(plugin, locale, index, headingTag) {
   <div class="detail-title">
     <${headingTag}>${escapeHtml(d.name)}</${headingTag}>
     <p class="plugin-author">${escapeHtml(t.by(plugin.author ?? ''))}</p>
-    <div class="detail-badges">${trustBadge(plugin, t)}${betaBadge(d, t)}</div>
+    <div class="detail-badges">${trustBadge(plugin, t)}${betaBadge(d, t)}${plugin.commercial ? `<span class="badge commercial">${escapeHtml(t.commercial)}</span>` : ''}</div>
   </div>
 </header>
 <dl class="stats">${stats.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}</dl>

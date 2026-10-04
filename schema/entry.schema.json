@@ -9,7 +9,6 @@
     "id",
     "name",
     "author",
-    "repository_url",
     "trust"
   ],
   "properties": {
@@ -59,6 +58,12 @@
     },
     "store": {
       "$ref": "#/$defs/store"
+    },
+    "distribution": {
+      "$ref": "#/$defs/distribution"
+    },
+    "commercial": {
+      "$ref": "#/$defs/commercial"
     },
     "categories": {
       "type": "array",
@@ -228,6 +233,97 @@
           }
         }
       ]
+    },
+    "distribution": {
+      "description": "Where the releases of the plugin come from. github, the default, reads the GitHub Releases of repository_url. vendor reads a release feed the vendor publishes, for partner plugins without a public repository; their packages stay on the vendor's hosting and the catalog pins their digests (scripts/ci/vendor-feed.mjs).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "github"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "releases_url"
+          ],
+          "properties": {
+            "type": {
+              "const": "vendor"
+            },
+            "releases_url": {
+              "$ref": "#/$defs/httpsUrl"
+            }
+          }
+        }
+      ]
+    },
+    "commercial": {
+      "type": "object",
+      "description": "A commercial plugin, shown with a Commercial badge, its price text and links. Only partner plugins (trust verified) may set it. Payment and license checks are the vendor's and the plugin's.",
+      "additionalProperties": false,
+      "required": [
+        "pricing",
+        "purchase_url"
+      ],
+      "properties": {
+        "pricing": {
+          "$ref": "#/$defs/localizedText",
+          "description": "The price as text per language, for example \"From 199 USD per server and year\"."
+        },
+        "purchase_url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "trial_days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 365
+        },
+        "license": {
+          "type": "string",
+          "enum": [
+            "commercial",
+            "subscription"
+          ]
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "not": {
+          "required": [
+            "distribution"
+          ],
+          "properties": {
+            "distribution": {
+              "properties": {
+                "type": {
+                  "const": "vendor"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "repository_url"
+        ]
+      }
+    }
+  ]
 }

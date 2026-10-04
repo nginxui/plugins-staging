@@ -171,10 +171,27 @@ function checkAuthorKeys(entries) {
 /** The releases come from the GitHub Releases of repository_url. */
 function checkRepositories(entries) {
   for (const [file, entry] of entries) {
+    // A vendor distributed plugin is released through its feed instead.
+    if (entry.distribution?.type === 'vendor') {
+      if (entry.trust !== 'verified')
+        fail(`plugins/${file}`, 'a vendor distributed plugin must be a partner plugin, trust "verified"')
+      if (entry.repository_url && !parseGithubRepoUrl(entry.repository_url))
+        fail(`plugins/${file}`, `repository_url ${JSON.stringify(entry.repository_url)} is not a github.com repository`)
+      continue
+    }
     if (!parseGithubRepoUrl(entry.repository_url))
       fail(`plugins/${file}`, `repository_url ${JSON.stringify(entry.repository_url)} is not a github.com repository, the releases are read from its GitHub Releases`)
   }
-  ok('every entry is released on GitHub')
+  ok('every entry is released on GitHub or through a vendor feed')
+}
+
+/** Only partner plugins may be commercial. */
+function checkCommercial(entries) {
+  for (const [file, entry] of entries) {
+    if (entry.commercial && entry.trust !== 'verified')
+      fail(`plugins/${file}`, 'only a partner plugin, trust "verified", may set commercial')
+  }
+  ok('commercial entries are partner plugins')
 }
 
 /** Checks blocked.json against its schema and that no entry is blocked. */
@@ -299,6 +316,7 @@ function main() {
   checkNamingPolicy(entries)
   checkAuthorKeys(entries)
   checkRepositories(entries)
+  checkCommercial(entries)
   checkBlocked(entries)
   checkStoreDocuments(entries)
   validatePartners()

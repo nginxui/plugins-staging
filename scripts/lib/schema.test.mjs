@@ -41,3 +41,12 @@ test('a store document holds texts and screenshots by repository path or upload'
     assert.notDeepEqual(validateAgainstSchemaFile(STORE, { screenshots: [{ id: 'x', path: bad }] }), [], bad)
   assert.notDeepEqual(validateAgainstSchemaFile(STORE, { categories: ['tools'] }), [])
 })
+
+test('a partner plugin can come from a vendor feed and be commercial', () => {
+  const vendor = { id: 'com.example.log', name: { en: 'Log' }, author: 'Example', trust: 'verified', distribution: { type: 'vendor', releases_url: 'https://example.com/releases.json' }, commercial: { pricing: { en: 'From 199 USD' }, purchase_url: 'https://example.com/buy', trial_days: 14, license: 'subscription' } }
+  assert.deepEqual(validateAgainstSchemaFile(ENTRY, vendor), [])
+  const { distribution: _, ...noRepo } = vendor
+  assert.notDeepEqual(validateAgainstSchemaFile(ENTRY, noRepo), [], 'a github entry needs repository_url')
+  assert.notDeepEqual(validateAgainstSchemaFile(ENTRY, { ...vendor, commercial: { pricing: { en: 'x' } } }), [])
+})
+

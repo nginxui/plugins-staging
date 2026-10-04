@@ -487,7 +487,7 @@ async function verifyPackage(entry, label, pkg, withIcon) {
     }
     if (!verifyContents(entry, label, root))
       return failed
-    return { ok: true, signer: sumsSigner(root), icon: withIcon ? packageIcon(label, root) : undefined }
+    return { ok: true, signer: sumsSigner(root), icon: withIcon ? packageIcon(label, root) : undefined, manifest: withIcon ? packageManifest(root) : undefined }
   }
   finally {
     rmSync(dir, { recursive: true, force: true })
@@ -517,19 +517,32 @@ export async function verifyRelease(entry, release) {
   let ok = true
   const signers = new Set()
   let icon
+  let manifest
   for (const [index, [label, pkg]] of packages.entries()) {
     const result = await verifyPackage(entry, `${entry.id} ${release.version} ${label}`, pkg, index === 0)
     ok &&= result.ok
     if (result.signer)
       signers.add(result.signer)
-    if (index === 0)
+    if (index === 0) {
       icon = result.icon
+      manifest = result.manifest
+    }
   }
   if (ok && signers.size > 1) {
     log('FAIL', `${entry.id} ${release.version}: the packages are signed by different keys (${[...signers].join(', ')})`)
     ok = false
   }
-  return { ok, signer: signers.size === 1 ? [...signers][0] : undefined, icon }
+  return { ok, signer: signers.size === 1 ? [...signers][0] : undefined, icon, manifest }
+}
+
+/** The plugin.json at the package root, or undefined when it cannot be read. */
+function packageManifest(root) {
+  try {
+    return JSON.parse(readFileSync(path.join(root, 'plugin.json'), 'utf8'))
+  }
+  catch {
+    return undefined
+  }
 }
 
 async function main() {

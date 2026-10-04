@@ -242,6 +242,11 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--chip); font: 13px
 .trust-official { color: var(--official); background: var(--official-bg); }
 .trust-verified { color: var(--verified); background: var(--verified-bg); }
 .trust-community { color: var(--community); background: var(--community-bg); }
+.badge.commercial { color: #d46b08; background: #fff7e6; }
+html[data-theme="dark"] .badge.commercial { color: #e89a3c; background: #2b1d11; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .badge.commercial { color: #e89a3c; background: #2b1d11; }
+}
 
 .plugin-description { flex: 1; margin: 0; }
 
