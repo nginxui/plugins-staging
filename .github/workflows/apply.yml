@@ -160,8 +160,11 @@ jobs:
             // partner files; null deletes the path.
             const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
             const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
-            const message = [title, '', `Submitted by @${env.SUBMITTER} in the developer portal: ${changeUrl}`, '',
-              `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`].join('\n')
+            // Names a deploy found have no submitter.
+            const message = env.SUBMITTER
+              ? [title, '', `Submitted by @${env.SUBMITTER} in the developer portal: ${changeUrl}`, '',
+                  `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`].join('\n')
+              : [title, '', `Names a release gives, found by the catalog deploy: ${changeUrl}`].join('\n')
             const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
             // A resubmission of the same change replaces the branch.
             try {

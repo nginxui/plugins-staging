@@ -60,3 +60,10 @@ test('commercial details are reviewed and can be dropped', () => {
   assert.ok(applyOperations(entry, { commercial: { pricing: {} } }, known).error)
 })
 
+test('names a release gives are reviewed and refused when they claim too much', () => {
+  const result = applyOperations(entry, { names: { ja_JP: 'ワイ' } }, known)
+  assert.deepEqual(result.entry.name, { en: 'Y', ja_JP: 'ワイ' })
+  assert.equal(classify(entry, result.entry).class, 'reviewed')
+  assert.ok(applyOperations(entry, { names: { ja_JP: '公式ワイ' } }, known).error)
+})
+

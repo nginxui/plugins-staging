@@ -41,8 +41,10 @@ export function submissionFromPayload(text) {
   catch {
     return { error: 'The payload is not JSON.' }
   }
-  const submitter = payload?.submitter
-  if (!submitter || typeof submitter.login !== 'string' || !LOGIN.test(submitter.login) || !Number.isSafeInteger(submitter.id))
+  // Names a deploy found come from the catalog itself, with no submitter.
+  const system = payload?.system === true && payload?.kind === 'entry_update' && Object.keys(payload.operations ?? {}).join() === 'names'
+  const submitter = system ? { login: '', id: 0 } : payload?.submitter
+  if (!system && (!submitter || typeof submitter.login !== 'string' || !LOGIN.test(submitter.login) || !Number.isSafeInteger(submitter.id)))
     return { error: 'The submitter is not a GitHub account.' }
   if (payload.kind === 'entry_update') {
     if (typeof payload.plugin_id !== 'string' || !PLUGIN_ID.test(payload.plugin_id))

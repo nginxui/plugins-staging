@@ -3,10 +3,12 @@
 // whatever it sends, only these fields can change; scripts/ci/classify.mjs
 // still decides from the result whether it may be committed directly.
 
+import { reservedWord } from '../ci/names.mjs'
 import { isSemver } from '../ci/semver.mjs'
 
 const SIGNER = /^[0-9a-f]{16}$/i
-const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store', 'commercial']
+const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store', 'commercial', 'names']
+const LOCALE = /^[a-z]{2,3}(_[A-Z]{2})?$/
 
 /** A list of strings, or null when it is not one. */
 function strings(value) {
@@ -78,6 +80,19 @@ export function applyOperations(before, operations, knownCategories) {
       return { error: 'The store source is not one the schema knows.' }
     entry.store = repo ? { source: 'repo', follow: store.follow } : { source: 'catalog' }
     summary.push('move the store source')
+  }
+
+  // Names a release gives that the entry does not show yet; reviewed.
+  if (operations.names !== undefined) {
+    const names = operations.names
+    if (!names || typeof names !== 'object' || !Object.keys(names).length)
+      return { error: 'No names were given.' }
+    for (const [locale, name] of Object.entries(names)) {
+      if (!LOCALE.test(locale) || typeof name !== 'string' || !name.trim() || name.length > 64 || reservedWord(name))
+        return { error: `The name in ${locale} cannot be listed.` }
+    }
+    entry.name = { ...entry.name, ...Object.fromEntries(Object.entries(names).map(([l, n]) => [l, n.trim()])) }
+    summary.push(`list the names in ${Object.keys(names).join(', ')}`)
   }
 
   // Commercial details of a partner plugin, or null to drop them; reviewed.

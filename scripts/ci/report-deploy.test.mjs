@@ -16,7 +16,9 @@ test('a deploy report holds every entry and the plugins with a verified release'
     { id: 'io.a.listed', releases: [{ version: '1.0.0' }] },
     { id: 'io.b.unverified', releases: [] },
   ] }))
-  const report = buildReport({ commit: 'abc', entriesDir: path.join(dir, 'plugins'), indexFile: path.join(dir, 'dist/v1/index.json') })
+  writeFileSync(path.join(dir, 'pending.json'), JSON.stringify({ plugins: [{ id: 'io.a.listed', version: '1.0.0', names: { ja_JP: 'エー' }, blocked: {} }, { id: 'io.c', version: '1.0.0', names: {}, blocked: { en: { name: 'Official C', word: 'official' } } }] }))
+  const report = buildReport({ commit: 'abc', entriesDir: path.join(dir, 'plugins'), indexFile: path.join(dir, 'dist/v1/index.json'), pendingFile: path.join(dir, 'pending.json') })
+  assert.deepEqual(report.pending, [{ id: 'io.a.listed', version: '1.0.0', names: { ja_JP: 'エー' } }])
   assert.equal(report.commit, 'abc')
   assert.deepEqual(Object.keys(report.entries).sort(), ['io.a.listed', 'io.b.unverified'])
   assert.deepEqual(report.listed, ['io.a.listed'])

@@ -92,7 +92,7 @@ export function prBody({ change, portalUrl, entry, before = null, fields, eligib
     lines.push(`| Release | [${cell(release.tag)}](${release.url}) |`)
   // The portal states the claim as "@login has admin permission on ...".
   const claim = String(eligibility ?? '').replace(/^@\S+\s+/, '')
-  lines.push(`| Submitted by | @${submitter}${claim ? `, who ${cell(claim)}` : ''} |`)
+  lines.push(submitter ? `| Submitted by | @${submitter}${claim ? `, who ${cell(claim)}` : ''} |` : '| Found by | the catalog deploy, in the plugin.json of a release |')
   lines.push(`| Developer portal | [Follow this change](${portalUrl}/changes/${change}) |`)
   lines.push('')
 

@@ -13,8 +13,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-/** The report of a deploy from the entry files and the published index. */
-export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/v1/index.json' }) {
+/** The report of a deploy from the entry files, the published index and the
+ * names waiting for review, which the portal turns into reviewed changes. */
+export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/v1/index.json', pendingFile = 'pending-names.json' }) {
   const entries = {}
   for (const file of readdirSync(entriesDir).filter(name => name.endsWith('.json'))) {
     const entry = JSON.parse(readFileSync(path.join(entriesDir, file), 'utf8'))
@@ -23,7 +24,10 @@ export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/
   // A plugin is listed once a release of it verified, not when its entry exists.
   const index = existsSync(indexFile) ? JSON.parse(readFileSync(indexFile, 'utf8')) : { plugins: [] }
   const listed = index.plugins.filter(plugin => plugin.releases?.length).map(plugin => plugin.id).sort()
-  return { commit, entries, listed }
+  const pending = existsSync(pendingFile)
+    ? (JSON.parse(readFileSync(pendingFile, 'utf8')).plugins ?? []).filter(p => Object.keys(p.names ?? {}).length).map(p => ({ id: p.id, version: p.version, names: p.names }))
+    : []
+  return { commit, entries, listed, pending }
 }
 
 async function idToken(audience) {
