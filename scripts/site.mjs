@@ -22,6 +22,8 @@ import {
 } from './site-strings.mjs'
 
 const SITE = 'https://plugins.nginxui.com'
+// Where authors submit and manage their plugins.
+const PORTAL = 'https://portal.nginxui.com'
 const MOON = '<svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'
 const SUN = '<svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>'
 const GLOBE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>'
@@ -382,7 +384,8 @@ ${section(t.about, `<p class="detail-description">${escapeHtml(d.description)}</
 ${versions ? section(t.versions, versions) : ''}
 ${d.capabilities.length > 0 ? section(t.provides, renderProvides(d, t)) : ''}
 ${section(t.permissions, renderPermissions(d, t, locale))}
-${section(t.information, `<dl class="info">${info.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}</dl>`)}`
+${section(t.information, `<dl class="info">${info.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`).join('')}</dl>
+<p class="manage"><a href="${PORTAL}/plugins/${encodeURIComponent(plugin.id)}" rel="noopener">${escapeHtml(t.manage)}</a> <span>${escapeHtml(t.manageNote)}</span></p>`)}`
 }
 
 function renderShell({ locale, title, description, pathOf, main, assets }) {
@@ -410,6 +413,7 @@ ${alternates}
     <span class="site-name">${escapeHtml(t.title)}</span>
   </a>
   <div class="site-tools">
+    <a class="site-submit" href="${PORTAL}/submit" rel="noopener">${escapeHtml(t.submit)}</a>
     <button class="theme" type="button" title="${escapeHtml(t.darkMode)}" aria-label="${escapeHtml(t.darkMode)}" aria-pressed="false" hidden>${MOON}${SUN}</button>
     <details class="languages">
       <summary title="${escapeHtml(t.language)}" aria-label="${escapeHtml(t.language)}">${GLOBE}</summary>
@@ -430,7 +434,7 @@ ${main}
   <button class="lightbox-step lightbox-next" type="button" aria-label="${escapeHtml(t.next)}" title="${escapeHtml(t.next)}">${CHEVRON_RIGHT}</button>
 </dialog>
 <footer class="site-foot">
-  <a href="https://github.com/nginxui/plugins/blob/main/CONTRIBUTING.md">${escapeHtml(t.submit)}</a>
+  <a href="${PORTAL}/submit" rel="noopener">${escapeHtml(t.submit)}</a>
   <a href="https://nginxui.com/plugin/overview">${escapeHtml(t.guide)}</a>
   <a href="/v1/index.json">${escapeHtml(t.catalog)}</a>
 </footer>
