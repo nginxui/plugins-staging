@@ -8,7 +8,8 @@
   "author_public_key": "RWQ+8Cm/aigr5eJbmeXC835X6OnB9I07WAWwB9DF1g3xTqEDtoFsCVR0",
   "repository_url": "https://github.com/Hintay/nginx-ui-plugin-hello",
   "categories": [
-    "templates"
+    "templates",
+    "notifications"
   ],
   "license": "MIT",
   "trust": "community"
