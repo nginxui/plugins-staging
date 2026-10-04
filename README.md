@@ -1,3 +1,10 @@
+> [!WARNING]
+> **Test copy of [nginxui/plugins](https://github.com/nginxui/plugins).** It
+> exists to test the developer portal staging site
+> (`portal-staging.nginxui.com`) without touching the real catalog. Nothing
+> here is published and no Nginx UI instance reads it. The deploy, the issue
+> submission, the name review and the webhook deploy workflows are removed.
+
 # nginxui/plugins
 
 The official plugin catalog for [nginx-ui](https://github.com/0xJacky/nginx-ui).
