@@ -1,0 +1,15 @@
+{
+  "id": "io.github.hintay.hello",
+  "name": {
+    "en": "Hello Templates",
+    "zh_CN": "Hello 模板"
+  },
+  "author": "Hintay",
+  "author_public_key": "RWQ+8Cm/aigr5eJbmeXC835X6OnB9I07WAWwB9DF1g3xTqEDtoFsCVR0",
+  "repository_url": "https://github.com/Hintay/nginx-ui-plugin-hello",
+  "categories": [
+    "templates"
+  ],
+  "license": "MIT",
+  "trust": "community"
+}
