@@ -24,6 +24,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { classify } from '../ci/classify.mjs'
 import { draftEntry, knownCategories } from './core.mjs'
 import { applyOperations } from './operations.mjs'
+import { applyPartnerUpdate, draftVendorEntry, readPartner } from './partner.mjs'
 import { applyStoreUpdate } from './store.mjs'
 
 const LOGIN = /^[a-z\d](?:[a-z\d-]{0,38})$/i
@@ -66,6 +67,20 @@ export function submissionFromPayload(text) {
         readme: typeof payload.readme === 'string' ? payload.readme : null,
         setSource: payload.set_source ?? null,
       },
+      submitter: { login: submitter.login, id: submitter.id },
+      eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
+    }
+  }
+  if (payload.kind === 'partner_update') {
+    return {
+      partner: payload.partner ?? {},
+      submitter: { login: submitter.login, id: submitter.id },
+      eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
+    }
+  }
+  if (payload.kind === 'vendor_listing') {
+    return {
+      vendor: payload.listing ?? {},
       submitter: { login: submitter.login, id: submitter.id },
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
     }
@@ -151,6 +166,60 @@ function updateStore(parsed) {
   setOutput('submitter_id', String(parsed.submitter.id))
 }
 
+/** Writes a partner file and sets the outputs; the checks of entries do not apply. */
+function updatePartner(parsed) {
+  const result = applyPartnerUpdate(readPartner(parsed.partner.name ?? ''), parsed.partner)
+  if (result.error) {
+    setOutput('result', 'rejected')
+    setOutput('message', result.error)
+    return
+  }
+  console.log(`partner: ${result.summary}, ${result.class}`)
+  setOutput('result', 'ok')
+  setOutput('message', `${result.summary[0].toUpperCase()}${result.summary.slice(1)}.`)
+  setOutput('id', parsed.partner.name)
+  setOutput('path', '')
+  setOutput('entry', '')
+  setOutput('drafts', JSON.stringify(result.files))
+  setOutput('class', result.class)
+  setOutput('fields', JSON.stringify(result.fields))
+  setOutput('summary', result.summary)
+  setOutput('reason', parsed.partner.revoke?.reason ?? '')
+  setOutput('eligibility', parsed.eligibility)
+  setOutput('submitter', parsed.submitter.login)
+  setOutput('submitter_id', String(parsed.submitter.id))
+}
+
+/** Drafts the entry of a vendor distributed plugin and sets the outputs. */
+function listVendorPlugin(parsed) {
+  const draft = draftVendorEntry(parsed.vendor)
+  if (draft.rejection) {
+    setOutput('result', 'rejected')
+    setOutput('message', draft.rejection)
+    return
+  }
+  const file = `plugins/${draft.entry.id}.json`
+  const before = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
+  if (before) {
+    setOutput('result', 'rejected')
+    setOutput('message', `${draft.entry.id} is listed already.`)
+    return
+  }
+  const content = `${JSON.stringify(draft.entry, null, 2)}\n`
+  const classified = classify(null, draft.entry)
+  setOutput('result', 'ok')
+  setOutput('message', `Drafted \`${file}\` for the vendor feed ${draft.entry.distribution.releases_url}.`)
+  setOutput('id', draft.entry.id)
+  setOutput('path', file)
+  setOutput('entry', content)
+  setOutput('drafts', JSON.stringify({ [file]: content }))
+  setOutput('class', classified.class)
+  setOutput('fields', JSON.stringify(classified.fields))
+  setOutput('eligibility', parsed.eligibility)
+  setOutput('submitter', parsed.submitter.login)
+  setOutput('submitter_id', String(parsed.submitter.id))
+}
+
 function setOutput(name, value) {
   const file = process.env.GITHUB_OUTPUT
   if (!file)
@@ -170,6 +239,10 @@ async function main() {
     return updateEntry(parsed)
   if (parsed.store)
     return updateStore(parsed)
+  if (parsed.partner)
+    return updatePartner(parsed)
+  if (parsed.vendor)
+    return listVendorPlugin(parsed)
   const draft = await draftEntry(parsed.submission, { token: process.env.GITHUB_TOKEN })
   if (draft.rejection) {
     console.log(`rejected: ${draft.rejection}`)

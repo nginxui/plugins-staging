@@ -51,3 +51,12 @@ test('the store source moves and needs a review', () => {
   assert.ok(applyOperations(entry, { store: { source: 'repo' } }, known).error)
   assert.ok(applyOperations(entry, { store: { source: 'catalog', follow: 'branch' } }, known).error)
 })
+
+test('commercial details are reviewed and can be dropped', () => {
+  const result = applyOperations(entry, { commercial: { pricing: { en: 'From 199 USD', de_DE: ' ' }, purchase_url: 'https://example.com/buy', trial_days: 14, license: 'subscription' } }, known)
+  assert.deepEqual(result.entry.commercial, { pricing: { en: 'From 199 USD' }, purchase_url: 'https://example.com/buy', trial_days: 14, license: 'subscription' })
+  assert.equal(classify(entry, result.entry).class, 'reviewed')
+  assert.equal('commercial' in applyOperations(result.entry, { commercial: null }, known).entry, false)
+  assert.ok(applyOperations(entry, { commercial: { pricing: {} } }, known).error)
+})
+

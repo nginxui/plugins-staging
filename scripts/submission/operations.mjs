@@ -6,7 +6,7 @@
 import { isSemver } from '../ci/semver.mjs'
 
 const SIGNER = /^[0-9a-f]{16}$/i
-const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store']
+const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store', 'commercial']
 
 /** A list of strings, or null when it is not one. */
 function strings(value) {
@@ -78,6 +78,25 @@ export function applyOperations(before, operations, knownCategories) {
       return { error: 'The store source is not one the schema knows.' }
     entry.store = repo ? { source: 'repo', follow: store.follow } : { source: 'catalog' }
     summary.push('move the store source')
+  }
+
+  // Commercial details of a partner plugin, or null to drop them; reviewed.
+  if (operations.commercial !== undefined) {
+    if (operations.commercial === null) {
+      delete entry.commercial
+    }
+    else {
+      const c = operations.commercial
+      if (!c || typeof c !== 'object' || typeof c.purchase_url !== 'string' || !c.pricing || typeof c.pricing !== 'object')
+        return { error: 'The commercial details need a price text and a purchase link.' }
+      entry.commercial = {
+        pricing: Object.fromEntries(Object.entries(c.pricing).filter(([, v]) => typeof v === 'string' && v.trim()).map(([k, v]) => [k, v.trim().slice(0, 200)])),
+        purchase_url: c.purchase_url,
+        ...(Number.isInteger(c.trial_days) ? { trial_days: c.trial_days } : {}),
+        ...(c.license === 'commercial' || c.license === 'subscription' ? { license: c.license } : {}),
+      }
+    }
+    summary.push('change the commercial details')
   }
 
   return { entry, summary: summary.join(', ') }

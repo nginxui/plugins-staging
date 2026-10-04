@@ -88,7 +88,8 @@ jobs:
   verify:
     name: Check the entry
     needs: draft
-    if: needs.draft.outputs.result == 'ok'
+    # A partner file has no entry to check; portal.mjs validated it.
+    if: needs.draft.outputs.result == 'ok' && needs.draft.outputs.path != ''
     permissions:
       contents: read
     uses: ./.github/workflows/check-entries.yml
@@ -99,7 +100,7 @@ jobs:
   publish:
     name: Open the pull request
     needs: [draft, verify]
-    if: needs.draft.outputs.result == 'ok' && needs.verify.result == 'success' && needs.draft.outputs.class != 'self_service' && needs.draft.outputs.class != ''
+    if: always() && needs.draft.outputs.result == 'ok' && (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.draft.outputs.path == '')) && needs.draft.outputs.class != 'self_service' && needs.draft.outputs.class != ''
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -126,6 +127,7 @@ jobs:
           ENTRY_PATH: ${{ needs.draft.outputs.path }}
           ENTRY: ${{ needs.draft.outputs.entry }}
           DRAFTS: ${{ needs.draft.outputs.drafts }}
+          SUMMARY: ${{ needs.draft.outputs.summary }}
           FIELDS: ${{ needs.draft.outputs.fields }}
           ELIGIBILITY: ${{ needs.draft.outputs.eligibility }}
           SUBMITTER: ${{ needs.draft.outputs.submitter }}
@@ -143,10 +145,12 @@ jobs:
             const env = process.env
             const branch = `portal/${env.CHANGE}`
             const fields = JSON.parse(env.FIELDS || '[]')
-            const entry = JSON.parse(env.ENTRY)
-            const before = existsSync(env.ENTRY_PATH) ? JSON.parse(readFileSync(env.ENTRY_PATH, 'utf8')) : null
+            // A partner file has no entry: ENTRY_PATH is empty.
+            const partner = !env.ENTRY_PATH
+            const entry = env.ENTRY ? JSON.parse(env.ENTRY) : null
+            const before = !partner && existsSync(env.ENTRY_PATH) ? JSON.parse(readFileSync(env.ENTRY_PATH, 'utf8')) : null
             const isNew = fields.some(item => item.field === 'listing' && item.change === 'added')
-            const title = isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
+            const title = partner ? `feat(partners): ${env.SUMMARY}` : isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
             const changeUrl = `${env.PORTAL_URL}/changes/${env.CHANGE}`
 
             const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
@@ -167,7 +171,12 @@ jobs:
               await github.rest.git.createRef({ ...context.repo, ref: `refs/heads/${branch}`, sha: commit.sha })
             }
 
-            const body = prBody({
+            const body = partner
+              ? [`## Partner: ${env.ID}`, '', `${env.SUMMARY[0].toUpperCase()}${env.SUMMARY.slice(1)}, as approved by @${env.SUBMITTER} in the developer portal.`, '',
+                  '| Field | Change |', '| --- | --- |', ...fields.map(item => `| \`${item.field}\` | ${item.change} |`), '',
+                  '### Review', '', '- [ ] The partner is who it says it is, and the key belongs to it', '- [ ] The profile impersonates nobody', '',
+                  `[Follow this change](${changeUrl})`].join('\n')
+              : prBody({
               change: env.CHANGE,
               portalUrl: env.PORTAL_URL,
               entry,
@@ -177,7 +186,7 @@ jobs:
               submitter: env.SUBMITTER,
               preview: env.PREVIEW,
               release: { tag: env.TAG, url: env.RELEASE_URL },
-            })
+              })
             const { data: open } = await github.rest.pulls.list({ ...context.repo, head: `${context.repo.owner}:${branch}`, state: 'open' })
             if (open.length > 0) {
               await github.rest.pulls.update({ ...context.repo, pull_number: open[0].number, title, body })
@@ -189,7 +198,7 @@ jobs:
   commit:
     name: Commit the self service change
     needs: [draft, verify]
-    if: needs.draft.outputs.result == 'ok' && needs.verify.result == 'success' && needs.draft.outputs.class == 'self_service'
+    if: always() && needs.draft.outputs.result == 'ok' && (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.draft.outputs.path == '')) && needs.draft.outputs.class == 'self_service'
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -218,8 +227,9 @@ jobs:
           result-encoding: string
           script: |
             const env = process.env
+            const partnerFile = Object.keys(JSON.parse(env.DRAFTS)).every(path => path.startsWith('partners/'))
             const message = [
-              `chore(plugins): ${env.SUMMARY} of ${env.ID}`,
+              partnerFile ? `chore(partners): ${env.SUMMARY}` : `chore(plugins): ${env.SUMMARY} of ${env.ID}`,
               '',
               // One line with a prefix, so the reason cannot add trailers such as Co-authored-by.
               ...(env.REASON ? [`Reason: ${env.REASON.replace(/\s+/g, ' ').trim()}`, ''] : []),
@@ -278,7 +288,7 @@ jobs:
               outcome = 'failed'
             else if (env.RESULT !== 'ok')
               outcome = 'rejected'
-            else if (env.VERIFY !== 'success')
+            else if (env.VERIFY !== 'success' && env.VERIFY !== 'skipped')
               outcome = 'checks_failed'
             else if (env.CLASS === 'self_service')
               outcome = env.COMMIT === 'success' && env.COMMIT_SHA ? 'committed' : 'failed'
