@@ -26,6 +26,10 @@ export function applyOperations(before, operations, knownCategories) {
   if (unknown.length)
     return { error: `Unknown operations: ${unknown.join(', ')}.` }
 
+  const both = (strings(operations.yank) ?? []).filter(version => (strings(operations.unyank) ?? []).includes(version))
+  if (both.length)
+    return { error: `Versions both yanked and restored: ${both.join(', ')}.` }
+
   const entry = structuredClone(before)
   const summary = []
   const yanked = new Set(entry.yanked ?? [])

@@ -35,3 +35,11 @@ test('nothing but the known operations is accepted', () => {
   assert.match(applyOperations(null, { yank: ['1.0.0'] }, known).error, /not listed/)
   assert.match(applyOperations(entry, {}, known).error, /No operation/)
 })
+
+test('several operations go in one change, but never yank and restore one version', () => {
+  const result = applyOperations({ ...entry, yanked: ['0.9.0'] }, { yank: ['1.0.0', '1.1.0'], unyank: ['0.9.0'], revoke_signers: ['AAAAAAAAAAAAAAAA'] }, known)
+  assert.deepEqual(result.entry.yanked, ['1.0.0', '1.1.0'])
+  assert.deepEqual(result.entry.revoked_signers, ['AAAAAAAAAAAAAAAA'])
+  assert.equal(result.summary, 'yank 1.0.0, 1.1.0, unyank 0.9.0, revoke signer AAAAAAAAAAAAAAAA')
+  assert.match(applyOperations(entry, { yank: ['1.0.0'], unyank: ['1.0.0'] }, known).error, /both yanked and restored/)
+})
