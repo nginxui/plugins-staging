@@ -80,6 +80,12 @@ export function submissionFromPayload(text) {
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
     }
   }
+  // The author withdrew the change; its pull request is closed.
+  if (payload.kind === 'close') {
+    if (!Number.isSafeInteger(payload.pr_number) || payload.pr_number <= 0)
+      return { error: 'The pull request number is not valid.' }
+    return { close: payload.pr_number, submitter: { login: submitter.login, id: submitter.id } }
+  }
   if (payload.kind === 'maintainer_update') {
     if (typeof payload.plugin_id !== 'string' || !PLUGIN_ID.test(payload.plugin_id))
       return { error: 'The plugin id is not valid.' }
@@ -272,6 +278,12 @@ async function main() {
   if (parsed.error) {
     setOutput('result', 'rejected')
     setOutput('message', parsed.error)
+    return
+  }
+  if (parsed.close) {
+    setOutput('result', 'close')
+    setOutput('pr_number', String(parsed.close))
+    setOutput('submitter', parsed.submitter.login)
     return
   }
   if (parsed.update)

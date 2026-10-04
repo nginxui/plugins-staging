@@ -61,6 +61,7 @@ jobs:
       release_url: ${{ steps.draft.outputs.release_url }}
       summary: ${{ steps.draft.outputs.summary }}
       reason: ${{ steps.draft.outputs.reason }}
+      pr_number: ${{ steps.draft.outputs.pr_number }}
     steps:
       - name: Check the change id
         env:
@@ -256,10 +257,42 @@ jobs:
             }
             throw new Error('main kept moving, the change was not committed')
 
+  close:
+    name: Close the withdrawn pull request
+    needs: draft
+    if: needs.draft.outputs.result == 'close'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SUBMIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SUBMIT_APP_PRIVATE_KEY }}
+          permission-pull-requests: write
+
+      - uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ needs.draft.outputs.pr_number }}
+          SUBMITTER: ${{ needs.draft.outputs.submitter }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const number = Number(process.env.PR_NUMBER)
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number })
+            // Only a pull request of the portal is closed this way.
+            if (pr.state !== 'open' || !pr.head.ref.startsWith('portal/')) {
+              core.info(`pull request #${number} is not an open one of the portal`)
+              return
+            }
+            await github.rest.issues.createComment({ ...context.repo, issue_number: number, body: `@${process.env.SUBMITTER} withdrew this change in the developer portal.` })
+            await github.rest.pulls.update({ ...context.repo, pull_number: number, state: 'closed' })
+
   report:
     name: Report to the portal
     needs: [draft, verify, publish, commit]
-    if: always()
+    # A withdrawal is already known to the portal.
+    if: always() && needs.draft.outputs.result != 'close'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
