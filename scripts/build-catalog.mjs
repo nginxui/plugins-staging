@@ -59,6 +59,7 @@ import { assetDigest, findPlatformAssets, findPortableAsset } from './ci/release
 import { inferChannel, keepRecentNotes, sortReleases, tagVersion } from './ci/releases.mjs'
 import { compareSemver, isSemver } from './ci/semver.mjs'
 import { deriveListing, displayRelease, listingChanges } from './ci/listing.mjs'
+import { mirrorConfig, mirrorScreenshots } from './ci/media-mirror.mjs'
 import { readStoreSource } from './ci/store-source.mjs'
 import { verifyRelease } from './ci/verify-release.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
@@ -448,6 +449,10 @@ async function main() {
   const failures = []
   const iconFiles = new Map()
   const pending = []
+  // Screenshots go to the media bucket when the deploy has its credentials.
+  const mirror = mirrorConfig()
+  const mirrorSeen = new Map()
+  console.log(mirror ? `mirroring screenshots into R2 bucket ${mirror.bucket}` : 'no R2 credentials, screenshots keep their source URLs')
   for (const entry of loadEntries(values.only)) {
     const published = publishedById.get(entry.id)
     const result = await entryReleases(entry, published, { token, verifyNewest: values['verify-newest'], failed, visited, repin })
@@ -479,6 +484,12 @@ async function main() {
     if (listing.pending) {
       pending.push({ id: entry.id, ...listing.pending })
       console.log(`${entry.id}: names waiting for review in ${Object.keys({ ...listing.pending.names, ...listing.pending.blocked }).join(', ')}`)
+    }
+    if (mirror && listing.fields.screenshots) {
+      const mirrored = await mirrorScreenshots(mirror, listing.fields.screenshots, mirrorSeen)
+      listing.fields.screenshots = mirrored.screenshots
+      for (const warning of mirrored.warnings)
+        console.warn(`::warning title=${entry.id}::screenshot not mirrored, ${warning}`)
     }
     plugins.push(catalogEntry(entry, listing.fields, result.releases, result.provides))
     console.log(`${entry.id}: ${result.releases.map(release => release.version).join(', ') || 'no release'}`)
