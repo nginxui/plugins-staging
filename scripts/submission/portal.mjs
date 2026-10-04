@@ -24,6 +24,8 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { classify } from '../ci/classify.mjs'
 import { draftEntry, knownCategories } from './core.mjs'
 import { applyOperations } from './operations.mjs'
+import { loadBlocked } from './core.mjs'
+import { applyMaintainerUpdate } from './maintainer.mjs'
 import { applyPartnerUpdate, draftVendorEntry, readPartner } from './partner.mjs'
 import { applyStoreUpdate } from './store.mjs'
 
@@ -74,6 +76,15 @@ export function submissionFromPayload(text) {
   if (payload.kind === 'partner_update') {
     return {
       partner: payload.partner ?? {},
+      submitter: { login: submitter.login, id: submitter.id },
+      eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
+    }
+  }
+  if (payload.kind === 'maintainer_update') {
+    if (typeof payload.plugin_id !== 'string' || !PLUGIN_ID.test(payload.plugin_id))
+      return { error: 'The plugin id is not valid.' }
+    return {
+      maintainer: payload,
       submitter: { login: submitter.login, id: submitter.id },
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
     }
@@ -190,6 +201,34 @@ function updatePartner(parsed) {
   setOutput('submitter_id', String(parsed.submitter.id))
 }
 
+/** Applies a maintainer action and sets the outputs; always a pull request. */
+function maintainerUpdate(parsed) {
+  const id = parsed.maintainer.plugin_id
+  const file = `plugins/${id}.json`
+  const entry = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
+  const result = applyMaintainerUpdate(entry, loadBlocked(), { ...parsed.maintainer, by: parsed.submitter.login })
+  if (result.error) {
+    setOutput('result', 'rejected')
+    setOutput('message', result.error)
+    return
+  }
+  const kept = typeof result.files[file] === 'string'
+  setOutput('result', 'ok')
+  setOutput('message', `${result.summary[0].toUpperCase()}${result.summary.slice(1)}.`)
+  setOutput('id', id)
+  // Only an entry that stays is checked again.
+  setOutput('path', kept ? file : '')
+  setOutput('entry', kept ? result.files[file] : '')
+  setOutput('drafts', JSON.stringify(result.files))
+  setOutput('class', 'maintainer')
+  setOutput('fields', JSON.stringify(result.fields))
+  setOutput('summary', result.summary)
+  setOutput('reason', String(parsed.maintainer.delist?.reason ?? parsed.maintainer.block?.reason ?? ''))
+  setOutput('eligibility', parsed.eligibility)
+  setOutput('submitter', parsed.submitter.login)
+  setOutput('submitter_id', String(parsed.submitter.id))
+}
+
 /** Drafts the entry of a vendor distributed plugin and sets the outputs. */
 function listVendorPlugin(parsed) {
   const draft = draftVendorEntry(parsed.vendor)
@@ -243,6 +282,8 @@ async function main() {
     return updatePartner(parsed)
   if (parsed.vendor)
     return listVendorPlugin(parsed)
+  if (parsed.maintainer)
+    return maintainerUpdate(parsed)
   const draft = await draftEntry(parsed.submission, { token: process.env.GITHUB_TOKEN })
   if (draft.rejection) {
     console.log(`rejected: ${draft.rejection}`)

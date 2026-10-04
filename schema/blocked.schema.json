@@ -17,6 +17,20 @@
       "description": "GitHub repositories as <owner>/<repo>, compared without regard to case.",
       "items": { "type": "string", "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$" },
       "uniqueItems": true
+    },
+    "reasons": {
+      "type": "object",
+      "description": "Why a plugin id or repository is blocked, who blocked it and when, keyed by the id or <owner>/<repo>.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "added_by": { "type": "string" },
+          "added_at": { "type": "string", "format": "date" }
+        }
+      }
     }
   }
 }

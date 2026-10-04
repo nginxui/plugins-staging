@@ -146,17 +146,18 @@ jobs:
             const branch = `portal/${env.CHANGE}`
             const fields = JSON.parse(env.FIELDS || '[]')
             // A partner file has no entry: ENTRY_PATH is empty.
-            const partner = !env.ENTRY_PATH
+            const partner = !env.ENTRY_PATH && Object.keys(JSON.parse(env.DRAFTS)).every(path => path.startsWith('partners/'))
             const entry = env.ENTRY ? JSON.parse(env.ENTRY) : null
             const before = !partner && existsSync(env.ENTRY_PATH) ? JSON.parse(readFileSync(env.ENTRY_PATH, 'utf8')) : null
             const isNew = fields.some(item => item.field === 'listing' && item.change === 'added')
-            const title = partner ? `feat(partners): ${env.SUMMARY}` : isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
+            const title = partner ? `feat(partners): ${env.SUMMARY}` : !env.ENTRY_PATH ? `chore(plugins): ${env.SUMMARY}` : isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
             const changeUrl = `${env.PORTAL_URL}/changes/${env.CHANGE}`
 
             const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
             const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: main.object.sha })
-            // Every file the draft job wrote: the entry, and store documents.
-            const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => ({ path, mode: '100644', type: 'blob', content }))
+            // Every file the draft job wrote: the entry, store documents and
+            // partner files; null deletes the path.
+            const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
             const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
             const message = [title, '', `Submitted by @${env.SUBMITTER} in the developer portal: ${changeUrl}`, '',
               `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`].join('\n')
@@ -171,10 +172,10 @@ jobs:
               await github.rest.git.createRef({ ...context.repo, ref: `refs/heads/${branch}`, sha: commit.sha })
             }
 
-            const body = partner
-              ? [`## Partner: ${env.ID}`, '', `${env.SUMMARY[0].toUpperCase()}${env.SUMMARY.slice(1)}, as approved by @${env.SUBMITTER} in the developer portal.`, '',
+            const body = partner || !env.ENTRY_PATH
+              ? [partner ? `## Partner: ${env.ID}` : `## Maintainer action: ${env.ID}`, '', `${env.SUMMARY[0].toUpperCase()}${env.SUMMARY.slice(1)}, as asked by @${env.SUBMITTER} in the developer portal.`, '',
                   '| Field | Change |', '| --- | --- |', ...fields.map(item => `| \`${item.field}\` | ${item.change} |`), '',
-                  '### Review', '', '- [ ] The partner is who it says it is, and the key belongs to it', '- [ ] The profile impersonates nobody', '',
+                  '### Review', '', ...(partner ? ['- [ ] The partner is who it says it is, and the key belongs to it', '- [ ] The profile impersonates nobody'] : ['- [ ] A second maintainer agrees with the action and its reason']), '',
                   `[Follow this change](${changeUrl})`].join('\n')
               : prBody({
               change: env.CHANGE,
@@ -241,7 +242,7 @@ jobs:
             for (let attempt = 0; attempt < 3; attempt++) {
               const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
               const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: ref.object.sha })
-              const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => ({ path, mode: '100644', type: 'blob', content }))
+              const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
               const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
               const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
               try {
