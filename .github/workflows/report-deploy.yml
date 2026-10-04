@@ -1,0 +1,49 @@
+name: Report deploy
+
+# The test catalog does not publish a site. This builds the catalog the way
+# deploy.yml does and sends the developer portal staging site the same report,
+# so changes merged here move to "live" there.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: report-deploy
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: nginxui/plugin-spec
+          path: .plugin-spec
+          persist-credentials: false
+
+      - name: Build the catalog
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CATALOG_URL: https://plugins.nginxui.com
+          PLUGIN_SPEC_DIR: ${{ github.workspace }}/.plugin-spec
+        run: node scripts/build-catalog.mjs --out dist --pending pending-names.json
+
+      - name: Report to the developer portal
+        env:
+          PORTAL_URL: ${{ vars.PORTAL_URL }}
+        run: node scripts/ci/report-deploy.mjs
