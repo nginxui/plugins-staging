@@ -52,6 +52,10 @@ test('the strictest field decides a change of several', () => {
   assert.deepEqual(result.fields.map(item => [item.field, item.class]), [['name', 'reviewed'], ['categories', 'self_service']])
 })
 
+test('moving the store document is reviewed', () => {
+  assert.equal(classify(entry, { ...entry, store: { source: 'repo', follow: 'branch' } }).class, 'reviewed')
+})
+
 test('an unknown field is reviewed', () => {
   assert.equal(classify(entry, { ...entry, future_field: true }).class, 'reviewed')
 })

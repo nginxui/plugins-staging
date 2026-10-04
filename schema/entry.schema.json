@@ -57,6 +57,9 @@
         "$ref": "#/$defs/screenshot"
       }
     },
+    "store": {
+      "$ref": "#/$defs/store"
+    },
     "categories": {
       "type": "array",
       "description": "Where the marketplace files the plugin, one to three ids. Hosts translate the ids.",
@@ -186,6 +189,45 @@
       "type": "string",
       "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
       "description": "Semantic Versioning 2.0.0, matching internal/plugin.semverPattern in nginx-ui."
+    },
+    "store": {
+      "description": "Where the store document of the plugin lives: its names, descriptions, homepage and screenshots, as schema/store.schema.json describes. Absent, they come from the plugin.json of the listed release. Fields set in this entry take precedence over the document, and the document over plugin.json. Reserved for the developer portal; the build does not read it yet.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "follow"
+          ],
+          "properties": {
+            "source": {
+              "const": "repo",
+              "description": "plugin.store.json in the plugin repository, with the screenshots it names in the same repository."
+            },
+            "follow": {
+              "enum": [
+                "branch",
+                "release"
+              ],
+              "description": "branch: the default branch, resolved to a commit by each build, so an edit goes live without a release. release: the tag of the listed release, so screenshots of unreleased features stay off the listing."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "const": "catalog",
+              "description": "store/<id>/store.json and store/<id>/README.md in this repository, with screenshots uploaded through the developer portal. For plugins without a public repository."
+            }
+          }
+        }
+      ]
     }
   }
 }

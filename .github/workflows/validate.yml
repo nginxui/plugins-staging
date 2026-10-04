@@ -41,7 +41,7 @@ jobs:
           path: .plugin-spec
 
       - name: node --test
-        run: node --test scripts/ci/*.test.mjs scripts/submission/*.test.mjs
+        run: node --test scripts/ci/*.test.mjs scripts/submission/*.test.mjs scripts/lib/*.test.mjs
 
       - name: node scripts/validate.mjs
         run: node scripts/validate.mjs

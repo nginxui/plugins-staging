@@ -98,6 +98,9 @@ Required fields and what they mean are documented in
   `dark_url` and `caption` locale map. NGINX UI shows only images served
   from your repository's GitHub host, the catalog or the host of your
   packages.
+- `store` is reserved for the developer portal, which will keep the store
+  texts and screenshots of a plugin apart from its `plugin.json`
+  (`schema/store.schema.json`). Leave it out.
 
 ## What `.github/workflows/validate.yml` checks
 

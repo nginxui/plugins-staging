@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plugins.nginxui.com/schema/store.schema.json",
+  "title": "Plugin Store Document",
+  "description": "What the marketplace shows about a plugin apart from its runtime manifest: names, descriptions, homepage and screenshots. It lives where the store field of the plugin's entry says, as plugin.store.json in the plugin repository or as store/<id>/store.json here, and nothing generates it. Names in it are proposals that go through the same review as the names of a manifest. Reserved for the developer portal; the build does not read it yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "$ref": "entry.schema.json#/$defs/localizedText"
+    },
+    "description": {
+      "$ref": "entry.schema.json#/$defs/localizedText"
+    },
+    "homepage_url": {
+      "$ref": "entry.schema.json#/$defs/httpsUrl"
+    },
+    "screenshots": {
+      "type": "array",
+      "description": "Images of the plugin in use, in display order. PNG, JPEG or WebP, about 16:10 at 1280 to 1920 pixels wide.",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/screenshot"
+      }
+    }
+  },
+  "$defs": {
+    "imagePath": {
+      "type": "string",
+      "description": "A path relative to the root of the plugin repository, or media:<sha256> for an image uploaded through the developer portal.",
+      "anyOf": [
+        {
+          "pattern": "^media:[0-9a-f]{64}$"
+        },
+        {
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[\\w./-]+\\.(png|jpe?g|webp)$"
+        }
+      ]
+    },
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+          "description": "Stays the same while the image changes, so captions and translations follow it."
+        },
+        "path": {
+          "$ref": "#/$defs/imagePath"
+        },
+        "dark_path": {
+          "$ref": "#/$defs/imagePath",
+          "description": "The same view in the dark theme, at the size of path. Hosts show path when it is absent."
+        },
+        "caption": {
+          "$ref": "entry.schema.json#/$defs/localizedText"
+        }
+      }
+    }
+  }
+}
