@@ -2,7 +2,7 @@
 // names of other languages from the plugin.json of its release, and its
 // English name from plugins/<id>.json. Any other entry shows only the names
 // its entry holds: a name its plugin.json gives that the entry does not hold,
-// English or not, waits for a maintainer (.github/workflows/review-names.yml),
+// English or not, waits for a maintainer in the developer portal,
 // since a name in any language can claim to be official. Descriptions are not
 // reviewed, but one claiming to be an official Nginx UI plugin is left out.
 

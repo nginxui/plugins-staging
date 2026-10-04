@@ -28,34 +28,24 @@ Before you submit, your plugin should have:
   `docs/signing.md`. A package without a signature is unsigned and installs
   only on a host in developer mode.
 
-## Submission path 1: the Issue form
+## Submission path 1: the developer portal
 
-Open a new Issue and pick **Submit a plugin**
-(`.github/ISSUE_TEMPLATE/submit-plugin.yml`). Fill in your repository URL,
-your primary public key and, if you like, the categories. The issue is the
-whole submission, there is no pull request to follow:
+Sign in to the [developer portal](https://portal.nginxui.com/submit) with
+GitHub and submit your repository. The portal drafts `plugins/<id>.json`
+from your newest release: the id and the names come from its `plugin.json`,
+the license from your repository, the categories from your choice or the
+capabilities of the plugin. The names are reviewed in every language, and
+none may claim to be official.
 
-1. `.github/workflows/submit-issue.yml` drafts `plugins/<id>.json` from your
-   newest release (`scripts/submission/`): the id and the names come from
-   its `plugin.json`, the license from your repository, the categories from
-   your choice or the capabilities of the plugin. The names are reviewed in
-   every language, and none may claim to be official.
-2. It checks the draft the way a pull request is checked, see
-   [What `.github/workflows/validate.yml` checks](#what-githubworkflowsvalidateyml-checks),
-   and posts a status comment with the result, what the listing will show
-   and the drafted entry. The status comment is updated in place, so it
-   always describes the last checked version of the issue.
-3. To change something, edit the issue. Your edits run the checks again,
-   so do a new release when the problem was in the packages.
-4. A maintainer reviews the issue, see [Review and merge](#review-and-merge),
-   and adds the `approved` label. The checks run once more and the entry is
-   committed to `main`, credited to you. The deploy then comments the plugin
-   page, labels the issue `listed` and closes it. An edit after the approval
-   withdraws it. From then on the issue follows your listing: it opens again
-   when a release names your plugin in a new way, see
-   [What your releases change](#what-your-releases-change).
-   Approving, listing and a withdrawn approval each add a short comment, so
-   the people concerned are notified.
+The portal opens a pull request with the draft, so it is checked the way any
+pull request is, see
+[What `.github/workflows/validate.yml` checks](#what-githubworkflowsvalidateyml-checks).
+The portal shows the result, what the listing will show and the state of the
+review, and notifies you when a maintainer approves, asks for changes or
+declines. A maintainer reviews it there, see [Review and merge](#review-and-merge).
+Once it is merged the deploy lists your plugin, and the portal shows it as
+live. From then on you change the listing, its store texts and screenshots
+and its releases in the portal.
 
 The repository has to agree to be listed. The submission checks that you own
 it, that you are a public member of the organization that owns it, or that it
@@ -150,8 +140,7 @@ preview in front of them:
    of conduct.
 5. The license and the categories fit.
 
-An issue is approved with the `approved` label, a pull request is merged.
-`.github/workflows/deploy.yml` then builds the catalog and deploys it, and
+An approved submission is merged. `.github/workflows/deploy.yml` then builds the catalog and deploys it, and
 your plugin is live at the default catalog URL within the cache time of
 nginx-ui hosts (`internal/plugin.Marketplace` caches a source for up to one
 hour, or refreshes at once for a user who hits "refresh"). Later releases
@@ -182,8 +171,8 @@ that is not yanked, or the newest release while there is no stable one:
 A name can claim to be official in any language, so every name is reviewed,
 English included. The listing shows the names of your entry. When a release
 names your plugin in a way your entry does not hold, in any language, the
-deploy reopens the issue of your plugin (your submission issue, or one it
-opens) with a checkbox per name. A maintainer ticks the names to list, which
+deploy hands the new names to the maintainers in the developer portal, where
+you can follow the review. A maintainer approves the names to list, which
 adds them to your entry, or declines the rest; until then the listing keeps
 the names it had. A name holding a word such as "official" or "官方", or a
 character that does not show, is left out.
@@ -191,7 +180,7 @@ character that does not show, is left out.
 Descriptions are not reviewed. One that names Nginx UI and claims to be
 official in the same sentence, such as "the official Nginx UI DNS plugin",
 or holds a character that does not show, is left out, the listing keeps the
-description it had, and the issue of your plugin says so. "The official
+description it had, and the developer portal says so. "The official
 Cloudflare API" is fine.
 
 The official plugins of the Nginx UI project take their names and

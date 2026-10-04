@@ -6,9 +6,8 @@ name: Check entries
 # nginx-ui plugin lint and conformance on the newest linux-amd64 package. An
 # entry needs at least one release that verifies.
 #
-# Called by validate.yml for a pull request and by submit-issue.yml for a
-# submission, whose entry file is not in the repository: drafts maps such a
-# path to its content. The outputs carry a preview of each entry and the
+# Called by validate.yml for a pull request. drafts maps an entry file that
+# is not in the repository to its content. The outputs carry a preview of each entry and the
 # problems found, for the caller to show.
 on:
   workflow_call:

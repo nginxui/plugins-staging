@@ -6,7 +6,6 @@ import path from 'node:path'
 import { afterEach, beforeEach, test } from 'node:test'
 import { newMinisignKey } from '../ci/test-minisign.mjs'
 import { checkEligibility, draftEntry } from './core.mjs'
-import { parseFormFields, submissionFromIssue } from './issue.mjs'
 import { escapeText, renderPreview } from './preview.mjs'
 
 const ID = 'io.github.alice.demo'
@@ -113,22 +112,6 @@ test('the repository owner, its topic or a public member may submit', async () =
   assert.equal((await checkEligibility(org, submitter)).eligible, false)
   publicMembers.add('acme/alice')
   assert.equal((await checkEligibility(org, submitter)).eligible, true)
-})
-
-test('an issue body becomes a submission', () => {
-  const body = [
-    '### Repository URL', '', 'https://github.com/alice/demo', '',
-    '### Primary public key', '', '```', key.publicKey.trim(), '```', '',
-    '### Categories', '', 'certificates, dns', '',
-    '### Checklist', '', '- [x] done',
-  ].join('\n')
-  assert.equal(parseFormFields('### A\n\n_No response_\n').A, '')
-  assert.deepEqual(submissionFromIssue({ body, user: { login: 'alice', id: 7 } }), {
-    repository_url: 'https://github.com/alice/demo',
-    author_public_key: key.publicKey.trim(),
-    categories: ['certificates', 'dns'],
-    submitter: { login: 'alice', id: 7 },
-  })
 })
 
 test('a preview shows plugin text as text', () => {

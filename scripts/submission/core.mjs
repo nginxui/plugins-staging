@@ -1,7 +1,7 @@
 // The core of a plugin submission, apart from where it comes from: drafts the
 // catalog entry of a submission and says whether the submitter may list the
-// repository. The issue form (scripts/submission/issue.mjs) is one front end;
-// a submission portal can call the same functions.
+// repository. The developer portal submits through apply.yml, which calls
+// these functions (scripts/submission/portal.mjs).
 //
 // A submission is { repository_url, author_public_key, categories,
 // submitter: { login, id } }.

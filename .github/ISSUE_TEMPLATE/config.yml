@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Submit a plugin
+    url: https://portal.nginxui.com/submit
+    about: Plugins are submitted and their listings changed in the developer portal.
