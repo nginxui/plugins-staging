@@ -6,6 +6,10 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The URL of this schema, so editors check the document."
+    },
     "name": {
       "$ref": "entry.schema.json#/$defs/localizedText",
       "description": "Proposed names by language, at most 64 characters each. They are reviewed before they are listed."
