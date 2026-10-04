@@ -1,0 +1,241 @@
+name: Apply
+
+# Applies a change submitted in the developer portal (portal.nginxui.com,
+# nginxui/plugin-portal). The portal starts it through the NGINX UI Catalog
+# Deploy App with the change id and its payload:
+#
+# - scripts/submission/portal.mjs drafts the entry with the same code as the
+#   issue form (scripts/submission/core.mjs) and classifies the change with
+#   scripts/ci/classify.mjs, from the entry alone, not from what the portal
+#   says it is.
+# - check-entries.yml checks the drafted entry like a pull request.
+# - A reviewed change is pushed to branch portal/<change id> and opened as a
+#   pull request by the NGINX UI Catalog Submissions App, mentioning the
+#   submitter. A maintainer merges it, in the portal or here. A new listing
+#   is always reviewed. Self service changes are not accepted yet.
+# - The outcome goes back to the portal with an OIDC token of this run, which
+#   the portal checks against GitHub's keys, this repository and this
+#   workflow, so no shared secret is needed.
+#
+# The Submissions App needs Contents write and Pull requests write. Variable
+# PORTAL_URL overrides https://portal.nginxui.com.
+on:
+  workflow_dispatch:
+    inputs:
+      change:
+        description: Change id in the developer portal
+        type: string
+        required: true
+      payload:
+        description: The change as JSON, see scripts/submission/portal.mjs
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: apply-${{ inputs.change }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: Draft the entry
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      result: ${{ steps.draft.outputs.result }}
+      message: ${{ steps.draft.outputs.message }}
+      id: ${{ steps.draft.outputs.id }}
+      path: ${{ steps.draft.outputs.path }}
+      entry: ${{ steps.draft.outputs.entry }}
+      drafts: ${{ steps.draft.outputs.drafts }}
+      class: ${{ steps.draft.outputs.class }}
+      fields: ${{ steps.draft.outputs.fields }}
+      eligibility: ${{ steps.draft.outputs.eligibility }}
+      submitter: ${{ steps.draft.outputs.submitter }}
+      submitter_id: ${{ steps.draft.outputs.submitter_id }}
+      tag: ${{ steps.draft.outputs.tag }}
+      release_url: ${{ steps.draft.outputs.release_url }}
+    steps:
+      - name: Check the change id
+        env:
+          CHANGE: ${{ inputs.change }}
+        run: |
+          if ! printf '%s' "$CHANGE" | grep -Eq '^c_[A-Za-z0-9_-]{8,40}$'; then
+            echo "::error::Invalid change id"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - id: draft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAYLOAD: ${{ inputs.payload }}
+        run: node scripts/submission/portal.mjs
+
+  verify:
+    name: Check the entry
+    needs: draft
+    if: needs.draft.outputs.result == 'ok'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/check-entries.yml
+    with:
+      entries: ${{ needs.draft.outputs.path }}
+      drafts: ${{ needs.draft.outputs.drafts }}
+
+  publish:
+    name: Open the pull request
+    needs: [draft, verify]
+    if: needs.draft.outputs.result == 'ok' && needs.verify.result == 'success' && needs.draft.outputs.class != 'self_service' && needs.draft.outputs.class != ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      pr_number: ${{ steps.pr.outputs.result }}
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SUBMIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SUBMIT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # The entry on main and the body template, read only.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - id: pr
+        uses: actions/github-script@v9
+        env:
+          CHANGE: ${{ inputs.change }}
+          ID: ${{ needs.draft.outputs.id }}
+          ENTRY_PATH: ${{ needs.draft.outputs.path }}
+          ENTRY: ${{ needs.draft.outputs.entry }}
+          FIELDS: ${{ needs.draft.outputs.fields }}
+          ELIGIBILITY: ${{ needs.draft.outputs.eligibility }}
+          SUBMITTER: ${{ needs.draft.outputs.submitter }}
+          SUBMITTER_ID: ${{ needs.draft.outputs.submitter_id }}
+          TAG: ${{ needs.draft.outputs.tag }}
+          RELEASE_URL: ${{ needs.draft.outputs.release_url }}
+          PREVIEW: ${{ needs.verify.outputs.preview }}
+          PORTAL_URL: ${{ vars.PORTAL_URL || 'https://portal.nginxui.com' }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          result-encoding: string
+          script: |
+            const { existsSync, readFileSync } = require('node:fs')
+            const { prBody } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/submission/pr-body.mjs`)
+            const env = process.env
+            const branch = `portal/${env.CHANGE}`
+            const fields = JSON.parse(env.FIELDS || '[]')
+            const entry = JSON.parse(env.ENTRY)
+            const before = existsSync(env.ENTRY_PATH) ? JSON.parse(readFileSync(env.ENTRY_PATH, 'utf8')) : null
+            const isNew = fields.some(item => item.field === 'listing' && item.change === 'added')
+            const title = isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
+            const changeUrl = `${env.PORTAL_URL}/changes/${env.CHANGE}`
+
+            const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
+            const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: main.object.sha })
+            const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha,
+              tree: [{ path: env.ENTRY_PATH, mode: '100644', type: 'blob', content: env.ENTRY }] })
+            const message = [title, '', `Submitted by @${env.SUBMITTER} in the developer portal: ${changeUrl}`, '',
+              `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`].join('\n')
+            const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
+            // A resubmission of the same change replaces the branch.
+            try {
+              await github.rest.git.updateRef({ ...context.repo, ref: `heads/${branch}`, sha: commit.sha, force: true })
+            }
+            catch (err) {
+              if (err.status !== 422)
+                throw err
+              await github.rest.git.createRef({ ...context.repo, ref: `refs/heads/${branch}`, sha: commit.sha })
+            }
+
+            const body = prBody({
+              change: env.CHANGE,
+              portalUrl: env.PORTAL_URL,
+              entry,
+              before,
+              fields,
+              eligibility: env.ELIGIBILITY,
+              submitter: env.SUBMITTER,
+              preview: env.PREVIEW,
+              release: { tag: env.TAG, url: env.RELEASE_URL },
+            })
+            const { data: open } = await github.rest.pulls.list({ ...context.repo, head: `${context.repo.owner}:${branch}`, state: 'open' })
+            if (open.length > 0) {
+              await github.rest.pulls.update({ ...context.repo, pull_number: open[0].number, title, body })
+              return String(open[0].number)
+            }
+            const { data: pr } = await github.rest.pulls.create({ ...context.repo, title, body, head: branch, base: 'main', maintainer_can_modify: false })
+            return String(pr.number)
+
+  report:
+    name: Report to the portal
+    needs: [draft, verify, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/github-script@v9
+        env:
+          CHANGE: ${{ inputs.change }}
+          DRAFT: ${{ needs.draft.result }}
+          RESULT: ${{ needs.draft.outputs.result }}
+          MESSAGE: ${{ needs.draft.outputs.message }}
+          CLASS: ${{ needs.draft.outputs.class }}
+          FIELDS: ${{ needs.draft.outputs.fields }}
+          ENTRY: ${{ needs.draft.outputs.entry }}
+          VERIFY: ${{ needs.verify.result }}
+          PREVIEW: ${{ needs.verify.outputs.preview }}
+          PROBLEMS: ${{ needs.verify.outputs.problems }}
+          PUBLISH: ${{ needs.publish.result }}
+          PR_NUMBER: ${{ needs.publish.outputs.pr_number }}
+          PORTAL_URL: ${{ vars.PORTAL_URL || 'https://portal.nginxui.com' }}
+        with:
+          script: |
+            const env = process.env
+            let outcome
+            if (env.DRAFT !== 'success')
+              outcome = 'failed'
+            else if (env.RESULT !== 'ok')
+              outcome = 'rejected'
+            else if (env.VERIFY !== 'success')
+              outcome = 'checks_failed'
+            else if (env.CLASS === 'self_service' || env.CLASS === '')
+              outcome = 'unsupported'
+            else
+              outcome = env.PUBLISH === 'success' && env.PR_NUMBER ? 'opened' : 'failed'
+            const audience = new URL(env.PORTAL_URL).host
+            const token = await core.getIDToken(audience)
+            const response = await fetch(`${env.PORTAL_URL}/api/hooks/apply`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                change: env.CHANGE,
+                outcome,
+                message: env.MESSAGE || '',
+                problems: env.PROBLEMS || '',
+                preview: env.PREVIEW || '',
+                class: env.CLASS || null,
+                fields: env.FIELDS ? JSON.parse(env.FIELDS) : [],
+                entry: env.ENTRY ? JSON.parse(env.ENTRY) : null,
+                pr_number: env.PR_NUMBER ? Number(env.PR_NUMBER) : null,
+                run_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              }),
+            })
+            if (!response.ok)
+              core.setFailed(`The portal answered ${response.status}: ${await response.text()}`)
+            else
+              core.info(`Reported ${outcome} for ${env.CHANGE}`)
