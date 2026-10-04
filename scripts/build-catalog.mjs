@@ -64,6 +64,7 @@ import { readStoreSource } from './ci/store-source.mjs'
 import { verifyRelease } from './ci/verify-release.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { SPEC_SCHEMAS, specSchema } from './lib/spec.mjs'
+import { renderBadges } from './badges.mjs'
 import { renderSite } from './site.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -542,6 +543,10 @@ async function main() {
   writeFileSync(path.join(out, '404.html'), NOT_FOUND)
   const versions = Object.fromEntries(['site.css', 'site.js'].map(name =>
     [name, createHash('sha256').update(readFileSync(path.join(ROOT, 'assets', name))).digest('hex').slice(0, 12)]))
+  for (const [file, svg] of renderBadges(index)) {
+    mkdirSync(path.dirname(path.join(out, file)), { recursive: true })
+    writeFileSync(path.join(out, file), svg)
+  }
   for (const [file, html] of renderSite(index, { versions })) {
     mkdirSync(path.dirname(path.join(out, file)), { recursive: true })
     writeFileSync(path.join(out, file), html)
