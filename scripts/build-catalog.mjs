@@ -59,6 +59,7 @@ import { assetDigest, findPlatformAssets, findPortableAsset } from './ci/release
 import { inferChannel, keepRecentNotes, sortReleases, tagVersion } from './ci/releases.mjs'
 import { compareSemver, isSemver } from './ci/semver.mjs'
 import { deriveListing, displayRelease, listingChanges } from './ci/listing.mjs'
+import { readStoreSource } from './ci/store-source.mjs'
 import { verifyRelease } from './ci/verify-release.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { SPEC_SCHEMAS, specSchema } from './lib/spec.mjs'
@@ -451,7 +452,11 @@ async function main() {
     const published = publishedById.get(entry.id)
     const result = await entryReleases(entry, published, { token, verifyNewest: values['verify-newest'], failed, visited, repin })
     failures.push(...result.failures)
-    const listing = await deriveListing(entry, result.releases, published, { repo: result.repo, tags: result.tags, icons: result.icons, site: servedAt })
+    const shownRelease = displayRelease(result.releases)
+    const store = await readStoreSource(entry, { repo: result.repo, tag: shownRelease ? result.tags.get(shownRelease.version) : undefined, token, root: ROOT })
+    if (store?.error)
+      console.warn(`::warning title=${entry.id}::the store document cannot be read, the listing uses the manifest: ${store.error}`)
+    const listing = await deriveListing(entry, result.releases, published, { repo: result.repo, tags: result.tags, icons: result.icons, site: servedAt, store: store?.error ? null : store })
     for (const warning of listing.warnings)
       console.warn(`::warning title=${entry.id}::${warning}`)
     if (listing.icon?.candidates) {

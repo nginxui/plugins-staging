@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://plugins.nginxui.com/schema/store.schema.json",
   "title": "Plugin Store Document",
-  "description": "What the marketplace shows about a plugin apart from its runtime manifest: names, descriptions, homepage and screenshots. It lives where the store field of the plugin's entry says, as plugin.store.json in the plugin repository or as store/<id>/store.json here, and nothing generates it. Names in it are proposals that go through the same review as the names of a manifest. Reserved for the developer portal; the build does not read it yet.",
+  "description": "What the marketplace shows about a plugin apart from its runtime manifest: names, descriptions, homepage and screenshots. It lives where the store field of the plugin's entry says, as plugin.store.json in the plugin repository or as store/<id>/store.json here, and nothing generates it. Names in it are proposals that go through the same review as the names of a manifest. The developer portal writes it.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

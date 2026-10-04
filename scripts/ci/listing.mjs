@@ -16,10 +16,14 @@
 // - icon_url: the icon inside the package, which the catalog serves.
 //
 // Whatever plugins/<id>.json sets wins: for description per language, for the
-// other fields as a whole. Used by scripts/build-catalog.mjs.
+// other fields as a whole. An entry with a store field reads its texts and
+// screenshots from that store document instead of the manifest, and names in
+// it wait for review like those of a manifest (store-source.mjs). Used by
+// scripts/build-catalog.mjs.
 
 import { descriptionProblem, manifestNames, pendingNames } from './names.mjs'
 import { inferChannel } from './releases.mjs'
+import { withStore } from './store-source.mjs'
 
 // Image types and the largest screenshot a listing shows.
 const SCREENSHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -85,13 +89,13 @@ async function imageProblem(url) {
 }
 
 /** The screenshots of a manifest snapshot as catalog screenshots. */
-function manifestScreenshots(manifest, repo, tag) {
+function manifestScreenshots(manifest, image) {
   return (manifest.screenshots ?? []).slice(0, 8).map((shot) => {
     const captions = Object.fromEntries(Object.entries(manifest.i18n ?? {}).map(([locale, text]) => [locale, text?.screenshot_captions?.[shot.id]]))
     const caption = sortedLocales(localized(shot.caption, captions))
     return {
-      url: rawUrl(repo, tag, shot.path),
-      ...(shot.dark_path ? { dark_url: rawUrl(repo, tag, shot.dark_path) } : {}),
+      url: image(shot.path),
+      ...(shot.dark_path ? { dark_url: image(shot.dark_path) } : {}),
       ...(Object.keys(caption).length > 0 ? { caption } : {}),
     }
   })
@@ -106,13 +110,15 @@ function manifestScreenshots(manifest, repo, tag) {
  * { version, candidates } for the paths to carry over from the published site,
  * which then also give icon_url when the entry sets none. pending is
  * { version, names, blocked, descriptions } for the names waiting for review
- * and the descriptions left out, see names.mjs.
+ * and the descriptions left out, see names.mjs. store is the document
+ * readStoreSource gives, { doc, image, readmeUrl }, or null.
  */
-export async function deriveListing(entry, releases, published, { repo, tags, icons, site }) {
+export async function deriveListing(entry, releases, published, { repo, tags, icons, site, store = null }) {
   const warnings = []
   const shown = displayRelease(releases)
-  const manifest = shown?.manifest ?? {}
+  const manifest = store ? withStore(shown?.manifest, store.doc) : shown?.manifest ?? {}
   const tag = shown ? tags.get(shown.version) : undefined
+  const image = store?.image ?? (repo && tag ? file => rawUrl(repo, tag, file) : null)
   const fields = {}
 
   const official = entry.trust === 'official'
@@ -156,19 +162,19 @@ export async function deriveListing(entry, releases, published, { repo, tags, ic
   if (entry.readme_url) {
     fields.readme_url = entry.readme_url
   }
-  else if (repo && tag) {
-    const readme = rawUrl(repo, tag, 'README.md')
+  else if (store?.readmeUrl || (repo && tag)) {
+    const readme = store?.readmeUrl ?? rawUrl(repo, tag, 'README.md')
     if (readme === published?.readme_url || (await head(readme))?.ok)
       fields.readme_url = readme
     else
-      warnings.push(`${entry.id}: no README.md at ${tag}, the listing has no readme`)
+      warnings.push(`${entry.id}: no README.md at ${store ? store.ref : tag}, the listing has no readme`)
   }
 
   if (entry.screenshots) {
     fields.screenshots = entry.screenshots
   }
-  else if (repo && tag) {
-    const candidates = manifestScreenshots(manifest, repo, tag)
+  else if (image) {
+    const candidates = manifestScreenshots(manifest, image)
     const checked = JSON.stringify(candidates) === JSON.stringify(published?.screenshots ?? [])
     const kept = []
     for (const shot of candidates) {

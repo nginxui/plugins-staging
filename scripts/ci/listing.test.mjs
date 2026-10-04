@@ -158,3 +158,23 @@ test('a listing change names the fields that differ', () => {
   assert.deepEqual(listingChanges({ name: { en: 'A' }, readme_url: 'x' }, { name: { en: 'A' } }), ['readme_url'])
   assert.deepEqual(listingChanges({ name: { en: 'A' } }, undefined), ['name'])
 })
+
+test('a store document replaces the texts and screenshots of the manifest', async () => {
+  const media = 'a'.repeat(64)
+  answers.set(`https://plugin-media.nginxui.com/${media}.webp`, 'image/webp')
+  answers.set('https://raw.githubusercontent.com/nginxui/plugins/abc/store/io.github.example.demo/README.md', 'text/plain')
+  const { imageResolver } = await import('./store-source.mjs')
+  const store = {
+    doc: { name: { en: 'Demo', ja_JP: 'デモ' }, description: { en: 'Better things' }, screenshots: [{ id: 'map', path: `media:${media}`, caption: { en: 'Map', de_DE: 'Karte' } }] },
+    ref: 'abc',
+    image: imageResolver({}),
+    readmeUrl: 'https://raw.githubusercontent.com/nginxui/plugins/abc/store/io.github.example.demo/README.md',
+  }
+  const { fields, pending } = await deriveListing(entry, releases, undefined, { repo, tags, icons: new Map(), site, store })
+  assert.deepEqual(fields.description, { en: 'Better things' })
+  assert.deepEqual(fields.screenshots, [{ url: `https://plugin-media.nginxui.com/${media}.webp`, caption: { en: 'Map', de_DE: 'Karte' } }])
+  assert.equal(fields.readme_url, store.readmeUrl)
+  assert.equal(fields.homepage_url, 'https://example.com/demo')
+  assert.deepEqual(pending.names, { ja_JP: 'デモ' })
+})
+
