@@ -24,6 +24,24 @@
       "items": {
         "$ref": "#/$defs/screenshot"
       }
+    },
+    "permission_reasons": {
+      "type": "object",
+      "description": "Translations of the notes that explain each permission, keyed by a permission the manifest declares and then by language. English stays in plugin.json, next to the permissions. A translation here wins over one in the manifest.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9._-]{0,47}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "$ref": "entry.schema.json#/$defs/locale"
+        },
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      }
     }
   },
   "$defs": {

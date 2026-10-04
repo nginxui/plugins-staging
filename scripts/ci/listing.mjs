@@ -158,6 +158,9 @@ export async function deriveListing(entry, releases, published, { repo, tags, ic
   const capabilities = entry.capabilities ?? manifest.capabilities
   if (capabilities?.length)
     fields.capabilities = capabilities
+  const notes = permissionNotes(store?.doc?.permission_reasons, manifest.permissions)
+  if (notes)
+    fields.permission_reasons = notes
 
   if (entry.readme_url) {
     fields.readme_url = entry.readme_url
@@ -214,7 +217,25 @@ export async function deriveListing(entry, releases, published, { repo, tags, ic
 }
 
 // The fields a listing change report compares.
-export const LISTING_FIELDS = ['name', 'description', 'homepage_url', 'readme_url', 'icon_url', 'screenshots', 'capabilities']
+export const LISTING_FIELDS = ['name', 'description', 'homepage_url', 'readme_url', 'icon_url', 'screenshots', 'capabilities', 'permission_reasons']
+
+/**
+ * The translated permission notes of a store document, for the permissions
+ * the shown release declares, English and empty texts left out; undefined
+ * when none is left. English stays in the manifest of each release.
+ */
+export function permissionNotes(reasons, permissions) {
+  const declared = new Set(permissions ?? [])
+  const out = {}
+  for (const [permission, texts] of Object.entries(reasons ?? {})) {
+    if (!declared.has(permission) || !texts || typeof texts !== 'object')
+      continue
+    const kept = Object.fromEntries(Object.entries(texts).filter(([locale, text]) => locale !== 'en' && typeof text === 'string' && text.trim()).map(([locale, text]) => [locale, text.trim().slice(0, 300)]))
+    if (Object.keys(kept).length)
+      out[permission] = sortedLocales(kept)
+  }
+  return Object.keys(out).length ? Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b))) : undefined
+}
 
 /** The listing fields of entry that differ from published. */
 export function listingChanges(entry, published) {

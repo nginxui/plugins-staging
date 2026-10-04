@@ -227,6 +227,8 @@ function describe(plugin, locale) {
     preview,
     shown,
     manifest,
+    // Translated permission notes of the store document, over the manifest's.
+    notes: plugin.permission_reasons ?? {},
     platforms: platformNames(shown),
     memory: manifest.server?.resources?.recommended_memory_mb ?? 0,
     categories: (plugin.categories ?? []).map(id => ({ id, label: categoryLabel(id, locale) })),
@@ -320,7 +322,7 @@ function renderPermissions(d, t, locale) {
   return `<ul class="rows">${names.map((name) => {
     const { label, description } = permission(name, locale)
     // An empty reason is none, an empty translation falls back to English.
-    const reason = [d.manifest.i18n?.[locale]?.permission_reasons?.[name], d.manifest.permission_reasons?.[name]]
+    const reason = [d.notes[name]?.[locale], d.manifest.i18n?.[locale]?.permission_reasons?.[name], d.manifest.permission_reasons?.[name]]
       .find(text => typeof text === 'string' && text.trim())
     const extra = name === 'network'
       ? (hosts.length > 0

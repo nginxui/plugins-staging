@@ -64,7 +64,7 @@ export function applyStoreUpdate(entry, before, update) {
   const classified = classify(entry, after)
   const fields = [...classified.fields]
   const names = !same(before?.name, update.doc.name)
-  for (const key of ['name', 'description', 'homepage_url', 'screenshots']) {
+  for (const key of ['name', 'description', 'homepage_url', 'screenshots', 'permission_reasons']) {
     if (!same(before?.[key], update.doc[key]))
       fields.push({ field: `store.${key}`, change: before?.[key] === undefined ? 'added' : update.doc[key] === undefined ? 'removed' : 'changed', class: key === 'name' ? 'reviewed' : 'self_service' })
   }

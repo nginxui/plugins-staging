@@ -1,7 +1,7 @@
 // Run with: node --test scripts/ci/*.test.mjs
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
-import { deriveListing, displayRelease, listingChanges } from './listing.mjs'
+import { deriveListing, displayRelease, listingChanges, permissionNotes } from './listing.mjs'
 
 const repo = { owner: 'example', repo: 'demo' }
 const site = 'https://plugins.nginxui.com'
@@ -178,3 +178,10 @@ test('a store document replaces the texts and screenshots of the manifest', asyn
   assert.deepEqual(pending.names, { ja_JP: 'デモ' })
 })
 
+
+test('the store document translates the notes of the permissions a release declares', () => {
+  const reasons = { network: { en: 'Ignored', ja_JP: ' 住所を調べます ', zh_CN: '' }, files: { ja_JP: 'ファイル' } }
+  assert.deepEqual(permissionNotes(reasons, ['network']), { network: { ja_JP: '住所を調べます' } })
+  assert.equal(permissionNotes(reasons, ['logs']), undefined)
+  assert.equal(permissionNotes(undefined, ['network']), undefined)
+})

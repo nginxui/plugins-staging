@@ -391,7 +391,7 @@ function ordered(release) {
 }
 
 // Member order of a catalog entry, so every build serializes it alike.
-const ENTRY_KEYS = ['id', 'name', 'description', 'author', 'author_public_key', 'homepage_url', 'repository_url', 'readme_url', 'icon_url', 'screenshots', 'categories', 'capabilities', 'license', 'trust', 'commercial', 'revoked_signers']
+const ENTRY_KEYS = ['id', 'name', 'description', 'author', 'author_public_key', 'homepage_url', 'repository_url', 'readme_url', 'icon_url', 'screenshots', 'permission_reasons', 'categories', 'capabilities', 'license', 'trust', 'commercial', 'revoked_signers']
 
 /** The catalog entry: the source entry without yanked, with the listing its
  * display release gives, what it provides and its releases. */
