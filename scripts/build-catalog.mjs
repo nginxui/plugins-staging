@@ -477,6 +477,8 @@ async function main() {
     const store = await readStoreSource(entry, { repo: result.repo, tag: shownRelease ? result.tags.get(shownRelease.version) : undefined, token, root: ROOT })
     if (store?.error)
       console.warn(`::warning title=${entry.id}::the store document cannot be read, the listing uses the manifest: ${store.error}`)
+    for (const warning of store?.warnings ?? [])
+      console.warn(`::warning title=${entry.id}::${warning}`)
     const listing = await deriveListing(entry, result.releases, published, { repo: result.repo, tags: result.tags, icons: result.icons, site: servedAt, store: store?.error ? null : store })
     for (const warning of listing.warnings)
       console.warn(`::warning title=${entry.id}::${warning}`)

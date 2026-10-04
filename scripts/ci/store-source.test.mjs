@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, test } from 'node:test'
-import { readStoreSource, withStore } from './store-source.mjs'
+import { cleanStoreDoc, readStoreSource, withStore } from './store-source.mjs'
 
 const realFetch = globalThis.fetch
 afterEach(() => {
@@ -45,4 +45,11 @@ test('a document replaces only the parts it holds', () => {
   assert.deepEqual(out.i18n, { zh_CN: { name: '旧' }, ja_JP: { description: '新' } })
   assert.equal(out.homepage_url, 'https://old')
   assert.deepEqual(out.screenshots, manifest.screenshots)
+})
+
+test('a field of a store document with a problem is left out', () => {
+  const { doc, warnings } = cleanStoreDoc({ $schema: 'x', name: { en: 'Y' }, homepage_url: 'http://insecure', screenshots: [{ id: 'A', path: 'a.gif' }], extra: 1 })
+  assert.deepEqual(doc, { name: { en: 'Y' } })
+  assert.equal(warnings.length, 4)
+  assert.deepEqual(cleanStoreDoc([]), { error: 'the store document is not a JSON object' })
 })

@@ -6,6 +6,33 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { validateAgainstSchemaFile } from '../lib/schema-validator.mjs'
+
+const STORE_SCHEMA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'schema', 'store.schema.json')
+
+/**
+ * A store document checked against schema/store.schema.json: a field with a
+ * problem is left out, so the listing keeps what the manifest gives for it.
+ * Returns { doc, warnings }, or { error } when it is not a document at all.
+ */
+export function cleanStoreDoc(doc) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc))
+    return { error: 'the store document is not a JSON object' }
+  const problems = validateAgainstSchemaFile(STORE_SCHEMA, doc)
+  const bad = new Set()
+  const warnings = []
+  for (const problem of problems) {
+    const text = typeof problem === 'string' ? problem : JSON.stringify(problem)
+    const unexpected = /^\/: unexpected property "([^"]+)"/.exec(text)
+    const field = unexpected?.[1] ?? /^\/([^/[:]+)/.exec(text)?.[1]
+    if (field)
+      bad.add(field)
+    warnings.push(`the store document is left out in part: ${text}`)
+  }
+  const kept = Object.fromEntries(Object.entries(doc).filter(([key]) => !bad.has(key) && key !== '$schema'))
+  return { doc: kept, warnings }
+}
 
 // Uploaded screenshots, named by their digest.
 export const MEDIA_URL = (process.env.MEDIA_URL || 'https://plugin-media.nginxui.com').replace(/\/+$/, '')
@@ -46,10 +73,12 @@ export async function readStoreSource(entry, { repo, tag, token, root = process.
       const file = path.join(dir, 'store.json')
       if (!existsSync(file))
         return { error: `store/${entry.id}/store.json does not exist` }
-      const doc = JSON.parse(readFileSync(file, 'utf8'))
+      const checked = cleanStoreDoc(JSON.parse(readFileSync(file, 'utf8')))
+      if (checked.error)
+        return checked
       const [owner, name] = catalogRepo.split('/')
       const readmeUrl = existsSync(path.join(dir, 'README.md')) && commit ? raw(owner, name, commit, `store/${entry.id}/README.md`) : null
-      return { doc, ref: commit ?? 'main', image: imageResolver({}), readmeUrl }
+      return { doc: checked.doc, warnings: checked.warnings, ref: commit ?? 'main', image: imageResolver({}), readmeUrl }
     }
     if (!repo)
       return { error: 'the entry has no GitHub repository to read plugin.store.json from' }
@@ -64,8 +93,10 @@ export async function readStoreSource(entry, { repo, tag, token, root = process.
     const response = await fetch(raw(repo.owner, repo.repo, ref, 'plugin.store.json'))
     if (!response.ok)
       return { error: `plugin.store.json at ${ref} answers HTTP ${response.status}` }
-    const doc = await response.json()
-    return { doc, ref, image: imageResolver({ ...repo, ref }), readmeUrl: raw(repo.owner, repo.repo, ref, 'README.md') }
+    const checked = cleanStoreDoc(await response.json())
+    if (checked.error)
+      return checked
+    return { doc: checked.doc, warnings: checked.warnings, ref, image: imageResolver({ ...repo, ref }), readmeUrl: raw(repo.owner, repo.repo, ref, 'README.md') }
   }
   catch (err) {
     return { error: err.message }
