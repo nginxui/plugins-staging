@@ -94,8 +94,8 @@ Required fields and what they mean are documented in
   reads it at the tag of the listed release, with no setting. `store` is for
   the two other places: the repository's default branch, so texts change
   without a release, or `store/<id>/` here, for plugins without a public
-  repository. The developer portal sets it after a review; leave it out
-  otherwise.
+  repository. The developer portal sets it: the default branch as soon as
+  the author asks, the catalog after a review. Leave it out otherwise.
 
 ## What `.github/workflows/validate.yml` checks
 

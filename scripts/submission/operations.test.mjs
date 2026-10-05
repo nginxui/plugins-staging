@@ -44,10 +44,11 @@ test('several operations go in one change, but never yank and restore one versio
   assert.match(applyOperations(entry, { yank: ['1.0.0'], unyank: ['1.0.0'] }, known).error, /both yanked and restored/)
 })
 
-test('the store source moves and needs a review', () => {
+test('the store source moves within the repository by itself, to the catalog with a review', () => {
   const result = applyOperations(entry, { store: { source: 'repo', follow: 'branch' } }, known)
   assert.deepEqual(result.entry.store, { source: 'repo', follow: 'branch' })
-  assert.equal(classify(entry, result.entry).class, 'reviewed')
+  assert.equal(classify(entry, result.entry).class, 'self_service')
+  assert.equal(classify(entry, applyOperations(entry, { store: { source: 'catalog' } }, known).entry).class, 'reviewed')
   assert.ok(applyOperations(entry, { store: { source: 'repo' } }, known).error)
   assert.ok(applyOperations(entry, { store: { source: 'catalog', follow: 'branch' } }, known).error)
 })
