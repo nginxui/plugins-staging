@@ -12,6 +12,15 @@ import { validateAgainstSchemaFile } from '../lib/schema-validator.mjs'
 
 const STORE_SCHEMA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'schema', 'store.schema.json')
 
+/** Why a crop region cannot be shown, empty when it can: it has to stay inside its image. */
+export function cropProblem(crop) {
+  if (!crop)
+    return ''
+  if (crop.x + crop.width > 1.0001 || crop.y + crop.height > 1.0001)
+    return 'the crop reaches past the image'
+  return ''
+}
+
 /**
  * A store document checked against schema/store.schema.json: a field with a
  * problem is left out, so the listing keeps what the manifest gives for it.
@@ -32,6 +41,16 @@ export function cleanStoreDoc(doc) {
     warnings.push(`the store document is left out in part: ${text}`)
   }
   const kept = Object.fromEntries(Object.entries(doc).filter(([key]) => !bad.has(key) && key !== '$schema'))
+  // A crop past its image leaves the screenshot whole.
+  for (const shot of kept.screenshots ?? []) {
+    for (const key of ['crop', 'dark_crop']) {
+      const problem = cropProblem(shot[key])
+      if (problem) {
+        delete shot[key]
+        warnings.push(`screenshots.${shot.id}.${key} is left out: ${problem}`)
+      }
+    }
+  }
   return { doc: kept, warnings }
 }
 
@@ -134,7 +153,14 @@ export function withStore(manifest, doc) {
   if (doc?.homepage_url)
     out.homepage_url = doc.homepage_url
   if (doc?.screenshots) {
-    out.screenshots = doc.screenshots.map(shot => ({ id: shot.id, path: shot.path, ...(shot.dark_path ? { dark_path: shot.dark_path } : {}), ...(shot.caption?.en ? { caption: shot.caption.en } : {}) }))
+    out.screenshots = doc.screenshots.map(shot => ({
+      id: shot.id,
+      path: shot.path,
+      ...(shot.crop ? { crop: shot.crop } : {}),
+      ...(shot.dark_path ? { dark_path: shot.dark_path } : {}),
+      ...(shot.dark_path && shot.dark_crop ? { dark_crop: shot.dark_crop } : {}),
+      ...(shot.caption?.en ? { caption: shot.caption.en } : {}),
+    }))
     for (const text of Object.values(out.i18n))
       delete text.screenshot_captions
     for (const shot of doc.screenshots) {

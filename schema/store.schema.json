@@ -23,7 +23,7 @@
     },
     "screenshots": {
       "type": "array",
-      "description": "Images of the plugin in use, in display order. PNG, JPEG or WebP, about 16:10 at 1280 to 1920 pixels wide.",
+      "description": "Images of the plugin in use, in display order. PNG, JPEG or WebP, 1280 to 1920 pixels wide. An image is 16:10, or carries a 16:10 crop of the part to show.",
       "maxItems": 8,
       "items": {
         "$ref": "#/$defs/screenshot"
@@ -83,6 +83,14 @@
         },
         "caption": {
           "$ref": "entry.schema.json#/$defs/localizedText"
+        },
+        "crop": {
+          "$ref": "entry.schema.json#/$defs/crop",
+          "description": "The part of path to show in lists and slideshows; opening the screenshot shows the whole image. Without it the image itself is 16:10."
+        },
+        "dark_crop": {
+          "$ref": "entry.schema.json#/$defs/crop",
+          "description": "The part of dark_path to show. Without it hosts use crop, since the dark image is the size of the light one."
         }
       }
     }

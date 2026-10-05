@@ -18,6 +18,7 @@ import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { parsePublicKey } from './lib/minisign.mjs'
 import { buildKeyring } from './build-partners.mjs'
 import { parseGithubRepoUrl } from './ci/github.mjs'
+import { cropProblem } from './ci/store-source.mjs'
 import { specSchema } from './lib/spec.mjs'
 import { storeProblems } from './submission/store.mjs'
 
@@ -99,6 +100,13 @@ function validateEntries() {
     if (schemaErrors.length > 0) {
       for (const e of schemaErrors)
         fail(`plugins/${file}`, e)
+      continue
+    }
+
+    const crops = (data.screenshots ?? []).flatMap((shot, i) => ['crop', 'dark_crop'].map(key => [`screenshots[${i}].${key}`, cropProblem(shot[key])])).filter(([, problem]) => problem)
+    if (crops.length > 0) {
+      for (const [where, problem] of crops)
+        fail(`plugins/${file}`, `${where}: ${problem}`)
       continue
     }
 

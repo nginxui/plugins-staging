@@ -165,14 +165,15 @@ test('a store document replaces the texts and screenshots of the manifest', asyn
   answers.set('https://raw.githubusercontent.com/nginxui/plugins/abc/store/io.github.example.demo/README.md', 'text/plain')
   const { imageResolver } = await import('./store-source.mjs')
   const store = {
-    doc: { name: { en: 'Demo', ja_JP: 'デモ' }, description: { en: 'Better things' }, screenshots: [{ id: 'map', path: `media:${media}`, caption: { en: 'Map', de_DE: 'Karte' } }] },
+    doc: { name: { en: 'Demo', ja_JP: 'デモ' }, description: { en: 'Better things' }, screenshots: [{ id: 'map', path: `media:${media}`, crop: { x: 0.1, y: 0, width: 0.8, height: 1 }, caption: { en: 'Map', de_DE: 'Karte' } }] },
     ref: 'abc',
     image: imageResolver({}),
     readmeUrl: 'https://raw.githubusercontent.com/nginxui/plugins/abc/store/io.github.example.demo/README.md',
   }
   const { fields, pending } = await deriveListing(entry, releases, undefined, { repo, tags, icons: new Map(), site, store })
   assert.deepEqual(fields.description, { en: 'Better things' })
-  assert.deepEqual(fields.screenshots, [{ url: `https://plugin-media.nginxui.com/${media}.webp`, caption: { en: 'Map', de_DE: 'Karte' } }])
+  // The part of the image to show goes to the catalog with it.
+  assert.deepEqual(fields.screenshots, [{ url: `https://plugin-media.nginxui.com/${media}.webp`, caption: { en: 'Map', de_DE: 'Karte' }, crop: { x: 0.1, y: 0, width: 0.8, height: 1 } }])
   assert.equal(fields.readme_url, store.readmeUrl)
   assert.equal(fields.homepage_url, 'https://example.com/demo')
   assert.deepEqual(pending.names, { ja_JP: 'デモ' })

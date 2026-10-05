@@ -97,6 +97,9 @@ function manifestScreenshots(manifest, image) {
       url: image(shot.path),
       ...(shot.dark_path ? { dark_url: image(shot.dark_path) } : {}),
       ...(Object.keys(caption).length > 0 ? { caption } : {}),
+      // The part to show, from a store document; hosts show the whole image when it is opened.
+      ...(shot.crop ? { crop: shot.crop } : {}),
+      ...(shot.dark_path && shot.dark_crop ? { dark_crop: shot.dark_crop } : {}),
     }
   })
 }

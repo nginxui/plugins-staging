@@ -66,3 +66,21 @@ test('a field of a store document with a problem is left out', () => {
   assert.equal(warnings.length, 4)
   assert.deepEqual(cleanStoreDoc([]), { error: 'the store document is not a JSON object' })
 })
+
+test('a crop past its image is left out and the screenshot stays', () => {
+  const doc = {
+    screenshots: [
+      { id: 'a', path: 'a.png', crop: { x: 0.5, y: 0, width: 0.6, height: 0.9 } },
+      { id: 'b', path: 'b.png', dark_path: 'b-dark.png', crop: { x: 0, y: 0, width: 1, height: 0.75 }, dark_crop: { x: 0, y: 0.25, width: 1, height: 0.75 } },
+    ],
+  }
+  const { doc: kept, warnings } = cleanStoreDoc(doc)
+  assert.deepEqual(kept.screenshots[0], { id: 'a', path: 'a.png' })
+  assert.deepEqual(kept.screenshots[1].dark_crop, { x: 0, y: 0.25, width: 1, height: 0.75 })
+  assert.match(warnings.join('\n'), /screenshots\.a\.crop is left out/)
+  // A region of no size is refused by the schema, which leaves out the screenshots.
+  assert.deepEqual(cleanStoreDoc({ screenshots: [{ id: 'c', path: 'c.png', crop: { x: 0, y: 0, width: 0, height: 1 } }] }).doc, {})
+  // The manifest the listing is built from carries the regions.
+  const merged = withStore({}, kept)
+  assert.deepEqual(merged.screenshots[1], { id: 'b', path: 'b.png', crop: { x: 0, y: 0, width: 1, height: 0.75 }, dark_path: 'b-dark.png', dark_crop: { x: 0, y: 0.25, width: 1, height: 0.75 } })
+})

@@ -173,6 +173,14 @@
         },
         "caption": {
           "$ref": "#/$defs/localizedText"
+        },
+        "crop": {
+          "$ref": "#/$defs/crop",
+          "description": "The part of url to show. Without it hosts fill a 16:10 frame from the middle of the image."
+        },
+        "dark_crop": {
+          "$ref": "#/$defs/crop",
+          "description": "The part of dark_url to show. Without it hosts use crop, since the dark image is the size of the light one."
         }
       }
     },
@@ -294,6 +302,39 @@
             "commercial",
             "subscription"
           ]
+        }
+      }
+    },
+    "crop": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "A region of an image as shares of its width and height, from its top left corner, so it stays right when the image is scaled. It is 16:10 on the image. Lists and slideshows show the region; opening the screenshot shows the whole image.",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
         }
       }
     }

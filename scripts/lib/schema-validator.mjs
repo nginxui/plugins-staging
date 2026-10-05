@@ -104,7 +104,7 @@ const KEYWORDS = new Set([
   // Validation.
   '$ref', 'type', 'const', 'enum', 'anyOf', 'allOf', 'oneOf', 'not', 'if', 'then', 'else',
   'properties', 'required', 'dependentRequired', 'additionalProperties', 'propertyNames', 'minProperties', 'maxProperties',
-  'items', 'contains', 'minItems', 'maxItems', 'uniqueItems', 'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'format',
+  'items', 'contains', 'minItems', 'maxItems', 'uniqueItems', 'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'exclusiveMinimum', 'format',
 ])
 
 const FORMATS = new Set(['uri', 'date-time', 'date'])
@@ -210,6 +210,8 @@ function validateNode(schema, data, ctx, instancePath, errors) {
       errors.push(`${label}: must be >= ${schema.minimum}`)
     if (schema.maximum !== undefined && data > schema.maximum)
       errors.push(`${label}: must be <= ${schema.maximum}`)
+    if (schema.exclusiveMinimum !== undefined && data <= schema.exclusiveMinimum)
+      errors.push(`${label}: must be > ${schema.exclusiveMinimum}`)
   }
 
   if (type === 'array') {
