@@ -196,7 +196,7 @@
       "description": "Semantic Versioning 2.0.0, matching internal/plugin.semverPattern in nginx-ui."
     },
     "store": {
-      "description": "Where the store document of the plugin lives: its names, descriptions, homepage and screenshots, as schema/store.schema.json describes. Absent, they come from the plugin.json of the listed release. Fields set in this entry take precedence over the document, and the document over plugin.json. Names in the document wait for review like the names of a manifest. The developer portal sets it.",
+      "description": "Where the store document of the plugin lives: its names, descriptions, homepage and screenshots, as schema/store.schema.json describes. Absent, they come from plugin.store.json at the tag of the listed release when the repository has one, else from its plugin.json. Fields set in this entry take precedence over the document, and the document over plugin.json. Names in the document wait for review like the names of a manifest. The developer portal sets it.",
       "oneOf": [
         {
           "type": "object",

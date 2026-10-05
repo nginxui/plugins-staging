@@ -1,7 +1,8 @@
-// Reads the store document an entry points to with its store field (spec 7.1
-// of the developer portal): plugin.store.json in the plugin repository at its
-// default branch or at the listed release, or store/<id>/store.json in this
-// repository. scripts/ci/listing.mjs lays the document over the manifest of
+// Reads the store document of an entry (spec 7.1 of the developer portal):
+// plugin.store.json in the plugin repository at the listed release, or, when
+// the store field says so, at its default branch, or store/<id>/store.json in
+// this repository. Without a store field a repository that has no
+// plugin.store.json at the release keeps the manifest alone. scripts/ci/listing.mjs lays the document over the manifest of
 // the listed release; fields the entry sets still win.
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -65,9 +66,21 @@ export function imageResolver({ owner, repo, ref }) {
  */
 export async function readStoreSource(entry, { repo, tag, token, root = process.cwd(), commit = process.env.GITHUB_SHA, catalogRepo = process.env.GITHUB_REPOSITORY || 'nginxui/plugins' }) {
   const store = entry.store
-  if (!store)
-    return null
   try {
+    // By default the document travels with the release, like the manifest.
+    if (!store) {
+      if (!repo || !tag)
+        return null
+      const response = await fetch(raw(repo.owner, repo.repo, tag, 'plugin.store.json'))
+      if (response.status === 404)
+        return null
+      if (!response.ok)
+        return { error: `plugin.store.json at ${tag} answers HTTP ${response.status}` }
+      const checked = cleanStoreDoc(await response.json())
+      if (checked.error)
+        return checked
+      return { doc: checked.doc, warnings: checked.warnings, ref: tag, image: imageResolver({ ...repo, ref: tag }), readmeUrl: raw(repo.owner, repo.repo, tag, 'README.md') }
+    }
     if (store.source === 'catalog') {
       const dir = path.join(root, 'store', entry.id)
       const file = path.join(dir, 'store.json')

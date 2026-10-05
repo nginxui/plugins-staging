@@ -38,6 +38,19 @@ test('a repository document follows the default branch at its newest commit', as
   assert.match(missing.error, /HTTP 404/)
 })
 
+test('without a store field the document at the release is read when there is one', async () => {
+  globalThis.fetch = async (url) => {
+    if (url === 'https://raw.githubusercontent.com/x/y/v1.0.0/plugin.store.json')
+      return Response.json({ description: { en: 'Hello', de_DE: 'Hallo' } })
+    return new Response(null, { status: 404 })
+  }
+  const store = await readStoreSource({ id: 'io.x.y' }, { repo: { owner: 'x', repo: 'y' }, tag: 'v1.0.0' })
+  assert.deepEqual(store.doc, { description: { en: 'Hello', de_DE: 'Hallo' } })
+  assert.equal(store.ref, 'v1.0.0')
+  assert.equal(await readStoreSource({ id: 'io.x.y' }, { repo: { owner: 'x', repo: 'y' }, tag: 'v0.9.0' }), null)
+  assert.equal(await readStoreSource({ id: 'io.x.y' }, { repo: null, tag: undefined }), null)
+})
+
 test('a document replaces only the parts it holds', () => {
   const manifest = { name: 'Y', description: 'Old', homepage_url: 'https://old', i18n: { zh_CN: { name: '旧', description: '旧的' } }, screenshots: [{ id: 'a', path: 'a.png' }] }
   const out = withStore(manifest, { description: { en: 'New', ja_JP: '新' } })

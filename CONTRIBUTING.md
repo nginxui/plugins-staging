@@ -89,10 +89,13 @@ Required fields and what they mean are documented in
   from your repository's GitHub host, the catalog or the host of your
   packages. The catalog mirrors every listed screenshot to
   `plugin-media.nginxui.com` and lists it from there.
-- `store` says where the store texts and screenshots of a plugin live when
-  they are kept apart from its `plugin.json`: `plugin.store.json` in the
-  repository, or `store/<id>/` here (`schema/store.schema.json`). The
-  developer portal sets it; leave it out otherwise.
+- Store texts and screenshots kept apart from `plugin.json` live in
+  `plugin.store.json` next to it (`schema/store.schema.json`); the catalog
+  reads it at the tag of the listed release, with no setting. `store` is for
+  the two other places: the repository's default branch, so texts change
+  without a release, or `store/<id>/` here, for plugins without a public
+  repository. The developer portal sets it after a review; leave it out
+  otherwise.
 
 ## What `.github/workflows/validate.yml` checks
 
