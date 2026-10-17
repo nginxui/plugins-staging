@@ -129,6 +129,7 @@ jobs:
           ENTRY: ${{ needs.draft.outputs.entry }}
           DRAFTS: ${{ needs.draft.outputs.drafts }}
           SUMMARY: ${{ needs.draft.outputs.summary }}
+          REASON: ${{ needs.draft.outputs.reason }}
           FIELDS: ${{ needs.draft.outputs.fields }}
           ELIGIBILITY: ${{ needs.draft.outputs.eligibility }}
           SUBMITTER: ${{ needs.draft.outputs.submitter }}
@@ -178,6 +179,8 @@ jobs:
 
             const body = partner || !env.ENTRY_PATH
               ? [partner ? `## Partner: ${env.ID}` : `## Maintainer action: ${env.ID}`, '', `${env.SUMMARY[0].toUpperCase()}${env.SUMMARY.slice(1)}, as asked by @${env.SUBMITTER} in the developer portal.`, '',
+                  // The reason the maintainer gave, quoted apart from the rest of the body.
+                  ...(env.REASON ? ['### Reason', '', ...env.REASON.trim().split('\n').map(line => `> ${line}`), ''] : []),
                   '| Field | Change |', '| --- | --- |', ...fields.map(item => `| \`${item.field}\` | ${item.change} |`), '',
                   '### Review', '', ...(partner ? ['- [ ] The partner is who it says it is, and the key belongs to it', '- [ ] The profile impersonates nobody'] : ['- [ ] A second maintainer agrees with the action and its reason']), '',
                   `[Follow this change](${changeUrl})`].join('\n')
