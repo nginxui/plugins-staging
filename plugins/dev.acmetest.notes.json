@@ -1,0 +1,19 @@
+{
+  "id": "dev.acmetest.notes",
+  "name": {
+    "en": "Acme Notes"
+  },
+  "author": "Acme Test Vendor",
+  "license": "MIT",
+  "trust": "verified",
+  "distribution": {
+    "type": "vendor",
+    "releases_url": "https://raw.githubusercontent.com/Hintay/nginx-ui-plugin-vendor-test/main/releases.json"
+  },
+  "store": {
+    "source": "catalog"
+  },
+  "categories": [
+    "templates"
+  ]
+}
