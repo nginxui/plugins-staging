@@ -15,6 +15,25 @@ const STORE_SCHEMA = path.join(ROOT, 'schema', 'store.schema.json')
 const README_LIMIT = 64 * 1024
 
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+const DOC_FIELDS = new Set(['name', 'description', 'homepage_url', 'screenshots', 'permission_reasons'])
+
+/** The document an update leads to. With fields, only those come from the
+ * update and the rest stays as the catalog holds it, so a names update and a
+ * texts update sent together never undo each other. */
+export function updatedDoc(before, update) {
+  if (!Array.isArray(update.fields))
+    return update.doc
+  const doc = { ...(before ?? {}) }
+  for (const field of update.fields) {
+    if (!DOC_FIELDS.has(field))
+      continue
+    if (update.doc?.[field] === undefined)
+      delete doc[field]
+    else
+      doc[field] = update.doc[field]
+  }
+  return doc
+}
 
 /** The problems of a document, empty when it may be listed. */
 export function storeProblems(doc) {
@@ -41,9 +60,10 @@ export function storeProblems(doc) {
 /**
  * Applies a store update. entry is plugins/<id>.json on main, before the
  * current store/<id>/store.json (null when absent), update { doc, readme,
- * setSource }. Returns { files, entry, class, fields, summary } or { error }.
+ * setSource, fields }. Returns { files, entry, class, fields, summary } or { error }.
  */
-export function applyStoreUpdate(entry, before, update) {
+export function applyStoreUpdate(entry, before, input) {
+  const update = { ...input, doc: updatedDoc(before, input) }
   if (!entry)
     return { error: 'The plugin is not listed.' }
   const moving = !!update.setSource

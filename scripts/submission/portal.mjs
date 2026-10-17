@@ -70,6 +70,8 @@ export function submissionFromPayload(text) {
         doc: payload.doc,
         readme: typeof payload.readme === 'string' ? payload.readme : null,
         setSource: payload.set_source ?? null,
+        // The document fields this update sets; without them the whole document.
+        fields: Array.isArray(payload.fields) ? payload.fields.filter(f => typeof f === 'string') : undefined,
       },
       submitter: { login: submitter.login, id: submitter.id },
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',
