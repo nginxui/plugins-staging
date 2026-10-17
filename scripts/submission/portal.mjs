@@ -231,7 +231,7 @@ function maintainerUpdate(parsed) {
   setOutput('class', 'maintainer')
   setOutput('fields', JSON.stringify(result.fields))
   setOutput('summary', result.summary)
-  setOutput('reason', String(parsed.maintainer.delist?.reason ?? parsed.maintainer.block?.reason ?? ''))
+  setOutput('reason', String(parsed.maintainer.delist?.reason ?? parsed.maintainer.block?.reason ?? parsed.maintainer.reason ?? ''))
   setOutput('eligibility', parsed.eligibility)
   setOutput('submitter', parsed.submitter.login)
   setOutput('submitter_id', String(parsed.submitter.id))
