@@ -32,3 +32,9 @@ test('every plugin gets each kind, style and language', () => {
   assert.ok(files.includes('badge/io.x.y/zh_CN/translations.square.svg'))
   assert.equal(files.length, 4 * 3 * 15)
 })
+
+test('the version badge shows the newest release whatever the order', () => {
+  const two = { ...plugin, releases: [{ version: '0.1.0', min_nginx_ui_version: '2.7.0' }, { version: '0.1.1', min_nginx_ui_version: '2.8.0' }] }
+  assert.equal(badgeContent(two, 'version', 'en').value, 'v0.1.1')
+  assert.equal(badgeContent(two, 'requires', 'en').value, 'Nginx UI 2.8.0+')
+})

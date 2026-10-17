@@ -9,6 +9,7 @@
 //
 // kinds: status, version, translations, requires.
 
+import { compareSemver } from './ci/semver.mjs'
 import { KNOWN_LOCALES } from './lib/locales.mjs'
 
 export const BADGE_KINDS = ['status', 'version', 'translations', 'requires']
@@ -68,8 +69,13 @@ export function badgeSvg(label, value, color, style = '') {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" role="img" aria-label="${escapeXml(`${label}: ${value}`)}"><title>${escapeXml(`${label}: ${value}`)}</title><clipPath id="r"><rect width="${width}" height="${height}" rx="${radius}" fill="#fff"/></clipPath><g clip-path="url(#r)"><rect width="${left}" height="${height}" fill="#555"/><rect x="${left}" width="${right}" height="${height}" fill="${color}"/></g><g fill="#fff" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Verdana,sans-serif" font-size="${size}"><text x="${left / 2}" y="${baseline}">${escapeXml(label)}</text><text x="${left + right / 2}" y="${baseline}">${escapeXml(value)}</text></g></svg>\n`
 }
 
+// The releases newest first; the index keeps them oldest first.
+function byNewest(plugin) {
+  return [...(plugin.releases ?? [])].sort((a, b) => compareSemver(b.version, a.version))
+}
+
 function newest(plugin) {
-  return plugin.releases?.[0] ?? null
+  return byNewest(plugin)[0] ?? null
 }
 
 /** Label, value and colour of one badge of a plugin in a language. */
@@ -91,7 +97,7 @@ export function badgeContent(plugin, kind, locale, locales = KNOWN_LOCALES) {
     const has = new Set([...Object.keys(plugin.name ?? {}), ...Object.keys(plugin.description ?? {})])
     return { label: t.translations, value: `${locales.filter(l => has.has(l)).length} / ${locales.length}`, color: COLORS.translations }
   }
-  const shown = plugin.releases?.find(r => !r.yanked) ?? newest(plugin)
+  const shown = byNewest(plugin).find(r => !r.yanked) ?? newest(plugin)
   const version = shown?.min_nginx_ui_version
   return { label: t.requires, value: version ? `Nginx UI ${version}+` : t.any, color: COLORS.requires }
 }
