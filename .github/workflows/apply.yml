@@ -155,8 +155,9 @@ jobs:
             const title = partner ? `feat(partners): ${env.SUMMARY}` : !env.ENTRY_PATH ? `chore(plugins): ${env.SUMMARY}` : isNew ? `feat(plugins): list ${env.ID}` : `feat(plugins): update ${env.ID}`
             const changeUrl = `${env.PORTAL_URL}/changes/${env.CHANGE}`
 
-            const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
-            const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: main.object.sha })
+            // The branch starts at the commit the draft job read, so merging it
+            // later is a three way merge that keeps whatever landed meanwhile.
+            const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: context.sha })
             // Every file the draft job wrote: the entry, store documents and
             // partner files; null deletes the path.
             const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
@@ -219,6 +220,11 @@ jobs:
           private-key: ${{ secrets.SUBMIT_APP_PRIVATE_KEY }}
           permission-contents: write
 
+      # scripts/submission/merge3.mjs, read only.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - id: commit
         uses: actions/github-script@v9
         env:
@@ -245,11 +251,42 @@ jobs:
               '',
               `Co-authored-by: ${env.SUBMITTER} <${env.SUBMITTER_ID}+${env.SUBMITTER}@users.noreply.github.com>`,
             ].join('\n')
-            // main may move while this runs; build on its newest head.
+            const { mergeFile } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/submission/merge3.mjs`)
+            const read = async (path, ref) => {
+              try {
+                const { data } = await github.rest.repos.getContent({ ...context.repo, path, ref, mediaType: { format: 'raw' } })
+                return String(data)
+              }
+              catch (err) {
+                if (err.status === 404)
+                  return null
+                throw err
+              }
+            }
+            const mergeText = (path, base, theirs, mine) => {
+              if (path.endsWith('.json'))
+                return mergeFile(base, theirs, mine)
+              if (mine === base)
+                return theirs
+              if (theirs === mine)
+                return mine
+              throw new Error(`${path} changed on main meanwhile`)
+            }
+            // The draft was made on context.sha; main may have moved since. A
+            // file changed meanwhile is merged with it, never overwritten.
             for (let attempt = 0; attempt < 3; attempt++) {
               const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' })
               const { data: parent } = await github.rest.git.getCommit({ ...context.repo, commit_sha: ref.object.sha })
-              const files = Object.entries(JSON.parse(env.DRAFTS)).map(([path, content]) => content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
+              const files = []
+              for (const [path, mine] of Object.entries(JSON.parse(env.DRAFTS))) {
+                let content = mine
+                if (ref.object.sha !== context.sha) {
+                  const [base, theirs] = await Promise.all([read(path, context.sha), read(path, ref.object.sha)])
+                  if (theirs !== base)
+                    content = mergeText(path, base, theirs, mine)
+                }
+                files.push(content === null ? { path, mode: '100644', type: 'blob', sha: null } : { path, mode: '100644', type: 'blob', content })
+              }
               const { data: tree } = await github.rest.git.createTree({ ...context.repo, base_tree: parent.tree.sha, tree: files })
               const { data: commit } = await github.rest.git.createCommit({ ...context.repo, message, tree: tree.sha, parents: [parent.sha] })
               try {
