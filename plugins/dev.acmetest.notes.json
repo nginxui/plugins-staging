@@ -19,9 +19,10 @@
   "commercial": {
     "pricing": {
       "en": "Free during the test",
-      "zh_CN": "测试期间免费"
+      "zh_CN": "测试期间免费",
+      "ja_JP": "テスト期間中は無料"
     },
     "purchase_url": "https://github.com/Hintay/nginx-ui-plugin-vendor-test",
-    "trial_days": 14
+    "trial_days": 30
   }
 }
