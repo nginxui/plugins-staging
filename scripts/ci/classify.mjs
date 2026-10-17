@@ -3,8 +3,10 @@
 // lesser one:
 //
 // - self_service: yanking or unyanking versions, revoking signers,
-//   changing categories and choosing whether the store document in the plugin
-//   repository follows releases or the default branch, committed directly once
+//   changing categories, the commercial details of a partner plugin (the
+//   checks refuse them on any other) and choosing whether the store document
+//   in the plugin repository follows releases or the default branch,
+//   committed directly once
 //   the checks pass. They reduce trust, file the plugin elsewhere or only
 //   change when the author's own document goes live; names in it are still
 //   reviewed.
@@ -18,7 +20,9 @@
 
 const RANK = { self_service: 1, reviewed: 2, maintainer: 3 }
 
-const SELF_SERVICE = new Set(['yanked', 'categories'])
+// Commercial details are only set on partner plugins, whose partner the
+// maintainers vouched for when listing them.
+const SELF_SERVICE = new Set(['yanked', 'categories', 'commercial'])
 const MAINTAINER = new Set(['trust', 'description', 'readme_url', 'screenshots', 'capabilities'])
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)

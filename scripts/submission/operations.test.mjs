@@ -53,10 +53,10 @@ test('the store source moves within the repository by itself, to the catalog wit
   assert.ok(applyOperations(entry, { store: { source: 'catalog', follow: 'branch' } }, known).error)
 })
 
-test('commercial details are reviewed and can be dropped', () => {
+test('commercial details are self service and can be dropped', () => {
   const result = applyOperations(entry, { commercial: { pricing: { en: 'From 199 USD', de_DE: ' ' }, purchase_url: 'https://example.com/buy', trial_days: 14, license: 'subscription' } }, known)
   assert.deepEqual(result.entry.commercial, { pricing: { en: 'From 199 USD' }, purchase_url: 'https://example.com/buy', trial_days: 14, license: 'subscription' })
-  assert.equal(classify(entry, result.entry).class, 'reviewed')
+  assert.equal(classify(entry, result.entry).class, 'self_service')
   assert.equal('commercial' in applyOperations(result.entry, { commercial: null }, known).entry, false)
   assert.ok(applyOperations(entry, { commercial: { pricing: {} } }, known).error)
 })

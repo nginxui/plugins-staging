@@ -25,6 +25,12 @@ test('yanking, unyanking and categories are self service', () => {
   assert.equal(classify(entry, { ...entry, categories: ['security', 'access'] }).class, 'self_service')
 })
 
+test('commercial details are self service', () => {
+  const before = { id: 'dev.acme.notes', trust: 'verified' }
+  const after = { ...before, commercial: { pricing: { en: 'Free' }, purchase_url: 'https://acme.example' } }
+  assert.equal(classify(before, after).class, 'self_service')
+})
+
 test('revoking a signer is self service, taking it back is reviewed', () => {
   const revoked = { ...entry, revoked_signers: ['AAAA'] }
   assert.equal(classify(entry, revoked).class, 'self_service')

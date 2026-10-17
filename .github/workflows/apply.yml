@@ -312,6 +312,7 @@ jobs:
         with:
           client-id: ${{ vars.SUBMIT_APP_CLIENT_ID }}
           private-key: ${{ secrets.SUBMIT_APP_PRIVATE_KEY }}
+          permission-contents: write
           permission-pull-requests: write
 
       - uses: actions/github-script@v9
@@ -330,6 +331,8 @@ jobs:
             }
             await github.rest.issues.createComment({ ...context.repo, issue_number: number, body: `@${process.env.SUBMITTER} withdrew this change in the developer portal.` })
             await github.rest.pulls.update({ ...context.repo, pull_number: number, state: 'closed' })
+            // The branch goes with it, so portal branches do not pile up.
+            await github.rest.git.deleteRef({ ...context.repo, ref: `heads/${pr.head.ref}` }).catch(err => core.warning(`branch ${pr.head.ref} stays: ${err.message}`))
 
   report:
     name: Report to the portal
