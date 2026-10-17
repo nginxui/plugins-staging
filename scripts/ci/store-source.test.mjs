@@ -18,6 +18,8 @@ test('a catalog hosted document is read from store/<id>/', async () => {
   const store = await readStoreSource({ id: 'io.x.y', store: { source: 'catalog' } }, { root, commit: 'c0ffee', catalogRepo: 'nginxui/plugins' })
   assert.deepEqual(store.doc, { description: { en: 'Hi' } })
   assert.equal(store.readmeUrl, 'https://raw.githubusercontent.com/nginxui/plugins/c0ffee/store/io.x.y/README.md')
+  // A catalog hosted plugin with no document yet lists what its release says.
+  assert.equal(await readStoreSource({ id: 'io.x.z', store: { source: 'catalog' } }, { root, commit: 'c0ffee', catalogRepo: 'nginxui/plugins' }), null)
   assert.equal(store.image(`media:${'b'.repeat(64)}`), `https://plugin-media.nginxui.com/${'b'.repeat(64)}.webp`)
 })
 

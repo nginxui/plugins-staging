@@ -103,8 +103,10 @@ export async function readStoreSource(entry, { repo, tag, token, root = process.
     if (store.source === 'catalog') {
       const dir = path.join(root, 'store', entry.id)
       const file = path.join(dir, 'store.json')
+      // A catalog hosted plugin with no document yet, as a vendor plugin
+      // right after listing, lists what its release says.
       if (!existsSync(file))
-        return { error: `store/${entry.id}/store.json does not exist` }
+        return null
       const checked = cleanStoreDoc(JSON.parse(readFileSync(file, 'utf8')))
       if (checked.error)
         return checked
