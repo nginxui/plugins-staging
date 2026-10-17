@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Tells the developer portal what a deploy published, so changes merged into
 // the catalog move to "live" there: the commit, the entry of every plugin in
-// the sources and the plugins the published index lists. The request carries
+// the sources, the plugins the published index lists and their versions, so
+// the portal can tell how long a release took to list. The request carries
 // an OIDC token of the run, which the portal checks against GitHub's keys,
 // this repository and this workflow, so no shared secret is needed.
 //
@@ -24,10 +25,15 @@ export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/
   // A plugin is listed once a release of it verified, not when its entry exists.
   const index = existsSync(indexFile) ? JSON.parse(readFileSync(indexFile, 'utf8')) : { plugins: [] }
   const listed = index.plugins.filter(plugin => plugin.releases?.length).map(plugin => plugin.id).sort()
+  // The release time of every listed version, by plugin.
+  const versions = Object.fromEntries(index.plugins.filter(plugin => plugin.releases?.length).map(plugin => [
+    plugin.id,
+    Object.fromEntries(plugin.releases.map(release => [release.version, release.released_at ?? null])),
+  ]))
   const pending = existsSync(pendingFile)
     ? (JSON.parse(readFileSync(pendingFile, 'utf8')).plugins ?? []).filter(p => Object.keys(p.names ?? {}).length).map(p => ({ id: p.id, version: p.version, names: p.names }))
     : []
-  return { commit, entries, listed, pending }
+  return { commit, entries, listed, versions, pending }
 }
 
 async function idToken(audience) {

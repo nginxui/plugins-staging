@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { formatMemory, offeredReleases, renderNotes, renderSite } from '../site.mjs'
-import { LOCALES } from '../site-strings.mjs'
+import { KNOWN_LOCALES as LOCALES } from '../lib/locales.mjs'
 
 test('release notes keep headings, lists and links, and escape the rest', () => {
   const html = renderNotes('### Features\n\n- Add `x` and **y**\n- See [docs](https://example.com/a?b=1&c=2)\n\nA <b>raw</b> line')

@@ -7,7 +7,7 @@ const plugin = { id: 'io.x.y', name: { en: 'Y', ja_JP: 'ワイ' }, description: 
 test('badges tell the listing state, version, coverage and host version', () => {
   assert.deepEqual(badgeContent(plugin, 'status', 'zh_CN'), { label: 'Nginx UI 插件', value: '已上架', color: '#389e0d' })
   assert.equal(badgeContent(plugin, 'version', 'en').value, 'v1.2.0')
-  assert.equal(badgeContent(plugin, 'translations', 'en').value, '3 / 14')
+  assert.equal(badgeContent(plugin, 'translations', 'en').value, '3 / 15')
   assert.equal(badgeContent(plugin, 'requires', 'en').value, 'Nginx UI 2.8.0+')
 })
 

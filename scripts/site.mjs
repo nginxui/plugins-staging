@@ -11,15 +11,12 @@ import {
   CAPABILITIES,
   CATEGORIES,
   CREDENTIALS_PERMISSION,
-  LANG,
-  LANGUAGE_NAME,
-  LOCALES,
   OTHER_CAPABILITY,
   PERMISSIONS,
-  RTL,
   STRINGS,
   UNKNOWN_PERMISSION,
 } from './site-strings.mjs'
+import { isRtl, KNOWN_LOCALES, langTag, languageName } from './lib/locales.mjs'
 
 const SITE = 'https://plugins.nginxui.com'
 // Where authors submit and manage their plugins.
@@ -172,8 +169,17 @@ export function renderNotes(markdown) {
   return blocks.join('')
 }
 
+// Texts a translation leaves out show the English ones.
+function stringsOf(locale) {
+  return STRINGS[locale] ?? STRINGS.en
+}
+
+function inLocale(texts, locale) {
+  return texts[locale] ?? texts.en
+}
+
 function categoryLabel(id, locale) {
-  return CATEGORIES[id]?.[locale] ?? id
+  return CATEGORIES[id] ? inLocale(CATEGORIES[id], locale) : id
 }
 
 /** The categories the plugins use, known ones in the order of CATEGORIES and
@@ -186,16 +192,16 @@ function usedCategories(plugins) {
 
 function capability(name, locale) {
   const preset = CAPABILITIES[name] ?? OTHER_CAPABILITY
-  return { label: preset.label[locale], description: preset.description[locale] }
+  return { label: inLocale(preset.label, locale), description: inLocale(preset.description, locale) }
 }
 
 function permission(name, locale) {
   if (name.startsWith('credentials.read:')) {
     const kind = name.slice('credentials.read:'.length)
-    return { label: CREDENTIALS_PERMISSION.label[locale](kind), description: CREDENTIALS_PERMISSION.description[locale](kind) }
+    return { label: inLocale(CREDENTIALS_PERMISSION.label, locale)(kind), description: inLocale(CREDENTIALS_PERMISSION.description, locale)(kind) }
   }
   const preset = PERMISSIONS[name] ?? UNKNOWN_PERMISSION
-  return { label: preset.label[locale], description: preset.description[locale] }
+  return { label: inLocale(preset.label, locale), description: inLocale(preset.description, locale) }
 }
 
 function trustBadge(plugin, t) {
@@ -238,7 +244,7 @@ function describe(plugin, locale) {
 }
 
 function renderCard(plugin, locale) {
-  const t = STRINGS[locale]
+  const t = stringsOf(locale)
   const d = describe(plugin, locale)
   const search = [plugin.id, d.name, d.description, plugin.author, ...d.categories.map(c => c.label), ...d.capabilities.map(c => c.label), ...d.providers.map(p => p.name)].join(' ').toLowerCase()
 
@@ -338,7 +344,7 @@ function renderPermissions(d, t, locale) {
 
 /** The details of a plugin, shared by its page and the overlay on the list. */
 function renderDetail(plugin, locale, index, headingTag) {
-  const t = STRINGS[locale]
+  const t = stringsOf(locale)
   const d = describe(plugin, locale)
   const names = new Map(index.plugins.map(p => [p.id, localized(p.name, locale)]))
   const conflicts = (d.manifest.conflicts ?? []).map(id => names.get(id) ?? id)
@@ -399,15 +405,17 @@ ${section(t.information, `<dl class="info">${info.map(([label, value]) => `<div>
 <p class="manage"><a href="${PORTAL}/plugins/${encodeURIComponent(plugin.id)}" rel="noopener">${escapeHtml(t.manage)}</a> <span>${escapeHtml(t.manageNote)}</span></p>`)}`
 }
 
-function renderShell({ locale, title, description, pathOf, main, assets }) {
-  const t = STRINGS[locale]
-  const alternates = LOCALES.map(other => `<link rel="alternate" hreflang="${LANG[other]}" href="${SITE}${pathOf(other)}">`).join('\n')
-  const languages = LOCALES.map(other => `<li><a href="${pathOf(other)}" hreflang="${LANG[other]}" lang="${LANG[other]}" data-locale="${other}"${other === locale ? ' aria-current="page"' : ''}>${LANGUAGE_NAME[other]}</a></li>`).join('')
+function renderShell({ locale, locales, title, description, pathOf, main, assets }) {
+  const t = stringsOf(locale)
+  const lang = other => langTag(other, locales)
+  const alternates = locales.map(other => `<link rel="alternate" hreflang="${lang(other)}" href="${SITE}${pathOf(other)}">`).join('\n')
+  const languages = locales.map(other => `<li><a href="${pathOf(other)}" hreflang="${lang(other)}" lang="${lang(other)}" data-locale="${other}"${other === locale ? ' aria-current="page"' : ''}>${escapeHtml(languageName(other, other, locales))}</a></li>`).join('')
   return `<!doctype html>
-<html lang="${LANG[locale]}"${RTL.includes(locale) ? ' dir="rtl"' : ''} data-locale="${locale}">
+<html lang="${lang(locale)}"${isRtl(locale) ? ' dir="rtl"' : ''} data-locale="${locale}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="locales" content="${locales.join(' ')}">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${SITE}${pathOf(locale)}">
@@ -454,9 +462,9 @@ ${main}
 `
 }
 
-function renderList(index, locale, assets) {
-  const t = STRINGS[locale]
-  const plugins = [...index.plugins].sort((a, b) => localized(a.name, locale).localeCompare(localized(b.name, locale), LANG[locale]))
+function renderList(index, locale, locales, assets) {
+  const t = stringsOf(locale)
+  const plugins = [...index.plugins].sort((a, b) => localized(a.name, locale).localeCompare(localized(b.name, locale), langTag(locale, locales)))
   const updated = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(index.updated_at ?? '') ? index.updated_at : ''
   const categories = usedCategories(plugins)
   const dialogs = plugins.map(plugin => `<dialog class="detail-dialog" id="detail-${escapeHtml(plugin.id)}" aria-label="${escapeHtml(localized(plugin.name, locale))}">
@@ -467,6 +475,7 @@ function renderList(index, locale, assets) {
 </dialog>`).join('\n')
   return renderShell({
     locale,
+    locales,
     title: t.title,
     description: t.lead,
     pathOf: listPath,
@@ -489,10 +498,11 @@ ${dialogs}`,
   })
 }
 
-function renderPluginPage(plugin, index, locale, assets) {
-  const t = STRINGS[locale]
+function renderPluginPage(plugin, index, locale, locales, assets) {
+  const t = stringsOf(locale)
   return renderShell({
     locale,
+    locales,
     title: `${localized(plugin.name, locale)} | ${t.title}`,
     description: localized(plugin.description, locale),
     pathOf: other => pluginPath(other, plugin.id),
@@ -510,15 +520,17 @@ ${renderDetail(plugin, locale, index, 'h1')}
  * per plugin. versions maps an asset file name to a version of its content,
  * which its URL carries: the assets are cached for a day, so a changed file
  * needs a new URL. */
-export function renderSite(index, { versions = {} } = {}) {
+export function renderSite(index, { versions = {}, locales: hostLocales = KNOWN_LOCALES } = {}) {
+  // A language gets pages once the site has its texts.
+  const locales = hostLocales.filter(locale => locale in STRINGS)
   const asset = name => `/assets/${name}${versions[name] ? `?v=${encodeURIComponent(versions[name])}` : ''}`
   const assets = { css: asset('site.css'), js: asset('site.js') }
   const pages = []
-  for (const locale of LOCALES) {
+  for (const locale of locales) {
     const base = locale === 'en' ? '' : `${locale}/`
-    pages.push([`${base}index.html`, renderList(index, locale, assets)])
+    pages.push([`${base}index.html`, renderList(index, locale, locales, assets)])
     for (const plugin of index.plugins)
-      pages.push([`${base}plugins/${plugin.id}/index.html`, renderPluginPage(plugin, index, locale, assets)])
+      pages.push([`${base}plugins/${plugin.id}/index.html`, renderPluginPage(plugin, index, locale, locales, assets)])
   }
   return pages
 }

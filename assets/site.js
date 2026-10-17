@@ -6,7 +6,8 @@
 // redirect, and a card leads to the plugin page. A screenshot opens larger
 // over the page, or as the image itself without it.
 (() => {
-  const LOCALES = ['en', 'zh_CN', 'zh_TW', 'ja_JP', 'ko_KR', 'de_DE', 'fr_FR', 'es', 'it_IT', 'pt_PT', 'ru_RU', 'uk_UA', 'tr_TR', 'vi_VN', 'ar']
+  // The languages the site is built in, from the page head.
+  const LOCALES = (document.querySelector('meta[name="locales"]')?.content ?? 'en').split(/\s+/).filter(Boolean)
   const THEMES = ['light', 'dark']
   const pathOf = locale => locale === 'en' ? '/' : `/${locale}/`
 

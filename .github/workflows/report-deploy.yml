@@ -47,3 +47,11 @@ jobs:
         env:
           PORTAL_URL: ${{ vars.PORTAL_URL }}
         run: node scripts/ci/report-deploy.mjs
+
+      # The test catalog publishes no site; the build is kept to look at.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: site
+          path: dist
+          retention-days: 7

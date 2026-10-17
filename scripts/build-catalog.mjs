@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Builds the site Cloudflare Pages serves at plugins.nginxui.com: the pages
 // listing the plugins (scripts/site.mjs), the catalog v1/index.json, the
-// partner keyring v1/partners.json, the schemas of this repository and of
-// plugin-spec, the assets and _headers. Both documents are
+// partner keyring v1/partners.json, the languages of Nginx UI the pages are
+// built in v1/locales.json (scripts/lib/locales.mjs), the schemas of this
+// repository and of plugin-spec, the assets and _headers. Both documents are
 // checked against the schemas of plugin-spec ($PLUGIN_SPEC_DIR or a checkout
 // next to this repository). Nothing it writes is committed.
 //
@@ -44,8 +45,8 @@
 //
 // Env: GITHUB_TOKEN (raises the API rate limit), PLUGIN_SIGNING_PUBLIC_KEY (the
 // official plugin key, see verify-release.mjs). Writes changed=true|false to
-// $GITHUB_OUTPUT: whether the catalog or the keyring differ from the
-// published ones.
+// $GITHUB_OUTPUT: whether the catalog, the keyring or the languages differ
+// from the published ones. HOST_LOCALES and LINGUAS_URL, see locales.mjs.
 
 import { createHash } from 'node:crypto'
 import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -66,6 +67,7 @@ import { verifyRelease } from './ci/verify-release.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { SPEC_SCHEMAS, specSchema } from './lib/spec.mjs'
 import { renderBadges } from './badges.mjs'
+import { fetchHostLocales } from './lib/locales.mjs'
 import { renderSite } from './site.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -454,6 +456,9 @@ async function main() {
 
   const publishedIndex = site ? await fetchPublished(site, 'v1/index.json') : null
   const publishedKeyring = site ? await fetchPublished(site, 'v1/partners.json') : null
+  const publishedLocales = site ? await fetchPublished(site, 'v1/locales.json') : null
+  const locales = await fetchHostLocales()
+  console.log(`languages of Nginx UI: ${locales.join(' ')}`)
   console.log(site
     ? `published catalog: ${publishedIndex ? `${publishedIndex.plugins.length} plugin(s)` : 'none yet'} at ${site}`
     : 'building without a published catalog')
@@ -560,11 +565,11 @@ async function main() {
   writeFileSync(path.join(out, '404.html'), NOT_FOUND)
   const versions = Object.fromEntries(['site.css', 'site.js'].map(name =>
     [name, createHash('sha256').update(readFileSync(path.join(ROOT, 'assets', name))).digest('hex').slice(0, 12)]))
-  for (const [file, svg] of renderBadges(index)) {
+  for (const [file, svg] of renderBadges(index, { locales })) {
     mkdirSync(path.dirname(path.join(out, file)), { recursive: true })
     writeFileSync(path.join(out, file), svg)
   }
-  for (const [file, html] of renderSite(index, { versions })) {
+  for (const [file, html] of renderSite(index, { versions, locales })) {
     mkdirSync(path.dirname(path.join(out, file)), { recursive: true })
     writeFileSync(path.join(out, file), html)
   }
@@ -574,11 +579,13 @@ async function main() {
   }
   writeFileSync(path.join(out, 'v1', 'index.json'), serialize(index))
   writeFileSync(path.join(out, 'v1', 'partners.json'), serializeKeyring(keyring))
+  writeFileSync(path.join(out, 'v1', 'locales.json'), serialize({ locales }))
   if (values.pending)
     writeFileSync(path.resolve(values.pending), serialize({ plugins: pending }))
 
   const changed = JSON.stringify(index) !== JSON.stringify(publishedIndex)
     || JSON.stringify(keyring) !== JSON.stringify(publishedKeyring)
+    || JSON.stringify(locales) !== JSON.stringify(publishedLocales?.locales)
   console.log(`wrote ${out} (${plugins.length} plugin(s), ${changed ? 'changed' : 'unchanged'})`)
   reportListingChanges(plugins, publishedById)
   if (process.env.GITHUB_OUTPUT)

@@ -9,13 +9,10 @@
 //
 // kinds: status, version, translations, requires.
 
-import { LOCALES } from './site-strings.mjs'
+import { KNOWN_LOCALES } from './lib/locales.mjs'
 
 export const BADGE_KINDS = ['status', 'version', 'translations', 'requires']
 export const BADGE_STYLES = ['', 'square', 'large']
-// The interface languages of Nginx UI that translations are counted in.
-const HOST_LOCALES = ['en', 'zh_CN', 'zh_TW', 'ja_JP', 'ko_KR', 'de_DE', 'fr_FR', 'es', 'pt_PT', 'ru_RU', 'uk_UA', 'tr_TR', 'vi_VN', 'ar']
-
 export const BADGE_STRINGS = {
   en: { plugin: 'Nginx UI plugin', listed: 'listed', version: 'version', yanked: 'yanked', translations: 'translations', requires: 'requires', any: 'any Nginx UI' },
   zh_CN: { plugin: 'Nginx UI 插件', listed: '已上架', version: '版本', yanked: '已撤回', translations: '翻译', requires: '需要', any: '任意 Nginx UI' },
@@ -76,7 +73,8 @@ function newest(plugin) {
 }
 
 /** Label, value and colour of one badge of a plugin in a language. */
-export function badgeContent(plugin, kind, locale) {
+// Translations are counted in the interface languages of Nginx UI, locales.
+export function badgeContent(plugin, kind, locale, locales = KNOWN_LOCALES) {
   const t = BADGE_STRINGS[locale] ?? BADGE_STRINGS.en
   if (kind === 'status')
     return { label: t.plugin, value: t.listed, color: COLORS.status }
@@ -91,7 +89,7 @@ export function badgeContent(plugin, kind, locale) {
   }
   if (kind === 'translations') {
     const has = new Set([...Object.keys(plugin.name ?? {}), ...Object.keys(plugin.description ?? {})])
-    return { label: t.translations, value: `${HOST_LOCALES.filter(l => has.has(l)).length} / ${HOST_LOCALES.length}`, color: COLORS.translations }
+    return { label: t.translations, value: `${locales.filter(l => has.has(l)).length} / ${locales.length}`, color: COLORS.translations }
   }
   const shown = plugin.releases?.find(r => !r.yanked) ?? newest(plugin)
   const version = shown?.min_nginx_ui_version
@@ -99,13 +97,14 @@ export function badgeContent(plugin, kind, locale) {
 }
 
 /** Every badge file of a catalog index, as [path, svg]. */
-export function renderBadges(index) {
+export function renderBadges(index, { locales = KNOWN_LOCALES } = {}) {
   const files = []
   for (const plugin of index.plugins) {
-    for (const locale of LOCALES) {
+    // Badges come in the languages their texts are translated into.
+    for (const locale of locales.filter(l => l in BADGE_STRINGS)) {
       const base = locale === 'en' ? `badge/${plugin.id}` : `badge/${plugin.id}/${locale}`
       for (const kind of BADGE_KINDS) {
-        const { label, value, color } = badgeContent(plugin, kind, locale)
+        const { label, value, color } = badgeContent(plugin, kind, locale, locales)
         for (const style of BADGE_STYLES)
           files.push([`${base}/${kind}${style ? `.${style}` : ''}.svg`, badgeSvg(label, value, color, style)])
       }

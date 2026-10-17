@@ -16,6 +16,8 @@ import { verifyRelease } from './verify-release.mjs'
 
 const SHA256 = /^[0-9a-f]{64}$/
 const PLATFORM = /^(?:any|[a-z0-9]+-[a-z0-9]+)$/
+// A vendor server that hangs must not stall the deploy.
+const FEED_TIMEOUT_MS = 30_000
 
 /** The releases of a feed that can be read, with why the others cannot. */
 export function parseFeed(feed) {
@@ -85,7 +87,7 @@ export async function vendorReleases(entry, published, { failed, visited, fetchI
   const url = entry.distribution?.releases_url
   let feed
   try {
-    const response = await fetchImpl(url, { headers: { Accept: 'application/json' } })
+    const response = await fetchImpl(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(FEED_TIMEOUT_MS) })
     if (!response.ok)
       throw new Error(`HTTP ${response.status}`)
     feed = await response.json()

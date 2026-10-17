@@ -13,7 +13,7 @@ test('a deploy report holds every entry and the plugins with a verified release'
   writeFileSync(path.join(dir, 'plugins/io.a.listed.json'), JSON.stringify({ id: 'io.a.listed', name: { en: 'A' } }))
   writeFileSync(path.join(dir, 'plugins/io.b.unverified.json'), JSON.stringify({ id: 'io.b.unverified', name: { en: 'B' } }))
   writeFileSync(path.join(dir, 'dist/v1/index.json'), JSON.stringify({ plugins: [
-    { id: 'io.a.listed', releases: [{ version: '1.0.0' }] },
+    { id: 'io.a.listed', releases: [{ version: '1.1.0', released_at: '2026-10-05T08:00:00Z' }, { version: '1.0.0' }] },
     { id: 'io.b.unverified', releases: [] },
   ] }))
   writeFileSync(path.join(dir, 'pending.json'), JSON.stringify({ plugins: [{ id: 'io.a.listed', version: '1.0.0', names: { ja_JP: 'エー' }, blocked: {} }, { id: 'io.c', version: '1.0.0', names: {}, blocked: { en: { name: 'Official C', word: 'official' } } }] }))
@@ -22,4 +22,5 @@ test('a deploy report holds every entry and the plugins with a verified release'
   assert.equal(report.commit, 'abc')
   assert.deepEqual(Object.keys(report.entries).sort(), ['io.a.listed', 'io.b.unverified'])
   assert.deepEqual(report.listed, ['io.a.listed'])
+  assert.deepEqual(report.versions, { 'io.a.listed': { '1.1.0': '2026-10-05T08:00:00Z', '1.0.0': null } })
 })

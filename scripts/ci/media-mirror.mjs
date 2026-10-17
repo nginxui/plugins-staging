@@ -47,9 +47,15 @@ export async function mirrorImage(config, url, seen = new Map()) {
     return { url }
   if (seen.has(url))
     return seen.get(url)
-  const response = await fetch(url)
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) })
   if (!response.ok)
     return { url, error: `${url} answers HTTP ${response.status}` }
+  // Refuse an oversized image before reading it.
+  const length = Number(response.headers.get('content-length') ?? 0)
+  if (length > MAX_BYTES) {
+    await response.body?.cancel()
+    return { url, error: `${url} is ${length} bytes, more than ${MAX_BYTES}` }
+  }
   const type = (response.headers.get('content-type') ?? '').split(';')[0].trim()
   const ext = TYPES[type]
   if (!ext)

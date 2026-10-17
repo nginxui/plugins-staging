@@ -1,11 +1,8 @@
 // The wording of plugins.nginxui.com. Capabilities and permissions use the
 // words of Nginx UI, so the site and the marketplace describe them the same way.
 
-export const LOCALES = ['en', 'zh_CN', 'zh_TW', 'ja_JP', 'ko_KR', 'de_DE', 'fr_FR', 'es', 'it_IT', 'pt_PT', 'ru_RU', 'uk_UA', 'tr_TR', 'vi_VN', 'ar']
-// Languages written right to left.
-export const RTL = ['ar']
-export const LANG = { en: 'en', zh_CN: 'zh-CN', zh_TW: 'zh-TW', ja_JP: 'ja', ko_KR: 'ko', de_DE: 'de', fr_FR: 'fr', es: 'es', it_IT: 'it', pt_PT: 'pt-PT', ru_RU: 'ru', uk_UA: 'uk', tr_TR: 'tr', vi_VN: 'vi', ar: 'ar' }
-export const LANGUAGE_NAME = { en: 'English', zh_CN: '简体中文', zh_TW: '繁體中文', ja_JP: '日本語', ko_KR: '한국어', de_DE: 'Deutsch', fr_FR: 'Français', es: 'Español', it_IT: 'Italiano', pt_PT: 'Português', ru_RU: 'Русский', uk_UA: 'Українська', tr_TR: 'Türkçe', vi_VN: 'Tiếng Việt', ar: 'العربية' }
+// Texts missing for a language show the English ones; the languages come from
+// scripts/lib/locales.mjs.
 
 export const STRINGS = {
   en: {
