@@ -287,13 +287,15 @@ async function entryReleases(entry, published, { token, verifyNewest, failed, vi
   }
 
   const sorted = sortReleases(releases)
-  const newest = sorted.at(-1)
-  if (verifyNewest && newest && pinned.has(newest.version) && !(await verifyRelease(entry, newest)).ok)
-    failures.push(`${entry.id} ${newest.version}: a package does not verify`)
-
   // A release signed by a withdrawn signing key is yanked like a listed one.
   const yanked = new Set(entry.yanked ?? [])
   const revoked = new Set((entry.revoked_signers ?? []).map(id => id.toUpperCase()))
+  // The newest release a host may still install. One withdrawn by this very
+  // change is not checked again, so a leaked key can be revoked at once.
+  const newest = sorted.findLast(release => !yanked.has(release.version) && !revoked.has(release.signer))
+  if (verifyNewest && newest && pinned.has(newest.version) && !(await verifyRelease(entry, newest)).ok)
+    failures.push(`${entry.id} ${newest.version}: a package does not verify`)
+
   for (const release of sorted) {
     if (yanked.has(release.version) || revoked.has(release.signer))
       release.yanked = true
