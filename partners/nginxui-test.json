@@ -5,5 +5,7 @@
   "github_owner": "nginxui",
   "homepage_url": "https://nginxui.com",
   "description": "A test partner for the partner flow on the staging catalog.",
-  "public_key": "RWRxdNEYmptmVyRHN8b4oslHq32UJA/z/wd/USbO5ymsYmEnvDwHARN5"
+  "public_key": "RWRxdNEYmptmVyRHN8b4oslHq32UJA/z/wd/USbO5ymsYmEnvDwHARN5",
+  "revoked": true,
+  "reason": "End of the partner flow test on staging."
 }
