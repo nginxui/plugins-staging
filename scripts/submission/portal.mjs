@@ -70,8 +70,10 @@ export function submissionFromPayload(text) {
         doc: payload.doc,
         readme: typeof payload.readme === 'string' ? payload.readme : null,
         setSource: payload.set_source ?? null,
-        // The document fields this update sets; without them the whole document.
+        // The fields this update sets as a whole; without fields and texts the whole document.
         fields: Array.isArray(payload.fields) ? payload.fields.filter(f => typeof f === 'string') : undefined,
+        // Texts set one language at a time, see scripts/submission/store.mjs.
+        texts: payload.texts && typeof payload.texts === 'object' && !Array.isArray(payload.texts) ? payload.texts : undefined,
       },
       submitter: { login: submitter.login, id: submitter.id },
       eligibility: typeof payload.eligibility === 'string' ? payload.eligibility.slice(0, 300) : '',

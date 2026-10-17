@@ -14,15 +14,15 @@ test('descriptions and screenshots are committed, names are reviewed', () => {
   assert.equal(names.class, 'reviewed')
 })
 
-test('an update with fields keeps every other field as the catalog holds it', () => {
-  // The names went out as their own change; the texts landed meanwhile.
-  const now = { name: { en: 'Y' }, description: { en: 'Newer' } }
-  const names = applyStoreUpdate(entry, now, { doc: { name: { en: 'Y', ja_JP: 'ワイ' }, description: { en: 'Old' } }, fields: ['name'] })
+test('an update with texts changes those languages only, on the document the catalog holds now', () => {
+  // A Korean description landed after the portal read the document.
+  const now = { name: { en: 'Y' }, description: { en: 'Old', ko_KR: '설명' }, permission_reasons: { network: { de_DE: 'Netz' } } }
+  const names = applyStoreUpdate(entry, now, { doc: {}, texts: { name: { ja_JP: 'ワイ' } } })
   assert.equal(names.class, 'reviewed')
-  assert.deepEqual(JSON.parse(names.files['store/io.x.y/store.json']), { name: { en: 'Y', ja_JP: 'ワイ' }, description: { en: 'Newer' } })
-  const texts = applyStoreUpdate(entry, now, { doc: { name: { en: 'Old' }, description: { en: 'Newest' } }, fields: ['description', 'homepage_url'] })
+  assert.deepEqual(JSON.parse(names.files['store/io.x.y/store.json']), { ...now, name: { en: 'Y', ja_JP: 'ワイ' } })
+  const texts = applyStoreUpdate(entry, now, { doc: { homepage_url: 'https://y.example' }, fields: ['homepage_url'], texts: { 'description': { es: 'Texto' }, 'permission_reasons.network': { de_DE: null } } })
   assert.equal(texts.class, 'self_service')
-  assert.deepEqual(JSON.parse(texts.files['store/io.x.y/store.json']), { name: { en: 'Y' }, description: { en: 'Newest' } })
+  assert.deepEqual(JSON.parse(texts.files['store/io.x.y/store.json']), { name: { en: 'Y' }, description: { en: 'Old', ko_KR: '설명', es: 'Texto' }, homepage_url: 'https://y.example' })
 })
 
 test('moving to the catalog writes the entry too and is reviewed', () => {

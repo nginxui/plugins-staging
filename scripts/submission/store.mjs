@@ -15,23 +15,50 @@ const STORE_SCHEMA = path.join(ROOT, 'schema', 'store.schema.json')
 const README_LIMIT = 64 * 1024
 
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
-const DOC_FIELDS = new Set(['name', 'description', 'homepage_url', 'screenshots', 'permission_reasons'])
+// Fields an update sets as a whole, and texts it sets one language at a time.
+const WHOLE_FIELDS = new Set(['homepage_url', 'screenshots'])
+const TEXT_FIELDS = new Set(['name', 'description', 'permission_reasons'])
 
-/** The document an update leads to. With fields, only those come from the
- * update and the rest stays as the catalog holds it, so a names update and a
- * texts update sent together never undo each other. */
+/**
+ * The document an update leads to. An update with fields or texts changes
+ * only those on the document the catalog holds: fields as a whole, texts per
+ * language (null takes one out), keyed "name", "description" or
+ * "permission_reasons.<permission>". So two updates sent close together, or
+ * one drafted on an older document, never undo each other. Without either
+ * the update is the whole document.
+ */
 export function updatedDoc(before, update) {
-  if (!Array.isArray(update.fields))
+  if (!Array.isArray(update.fields) && !update.texts)
     return update.doc
-  const doc = { ...(before ?? {}) }
-  for (const field of update.fields) {
-    if (!DOC_FIELDS.has(field))
+  const doc = structuredClone(before ?? {})
+  for (const field of update.fields ?? []) {
+    if (!WHOLE_FIELDS.has(field))
       continue
     if (update.doc?.[field] === undefined)
       delete doc[field]
     else
       doc[field] = update.doc[field]
   }
+  for (const [key, values] of Object.entries(update.texts ?? {})) {
+    const [field, permission] = key.split('.')
+    if (!TEXT_FIELDS.has(field) || (field === 'permission_reasons') !== !!permission || !values || typeof values !== 'object')
+      continue
+    const holder = field === 'permission_reasons' ? (doc.permission_reasons ??= {}) : doc
+    const name = field === 'permission_reasons' ? permission : field
+    const texts = { ...(holder[name] ?? {}) }
+    for (const [locale, value] of Object.entries(values)) {
+      if (value === null)
+        delete texts[locale]
+      else if (typeof value === 'string')
+        texts[locale] = value
+    }
+    if (Object.keys(texts).length)
+      holder[name] = texts
+    else
+      delete holder[name]
+  }
+  if (doc.permission_reasons && !Object.keys(doc.permission_reasons).length)
+    delete doc.permission_reasons
   return doc
 }
 
@@ -60,7 +87,7 @@ export function storeProblems(doc) {
 /**
  * Applies a store update. entry is plugins/<id>.json on main, before the
  * current store/<id>/store.json (null when absent), update { doc, readme,
- * setSource, fields }. Returns { files, entry, class, fields, summary } or { error }.
+ * setSource, fields, texts }. Returns { files, entry, class, fields, summary } or { error }.
  */
 export function applyStoreUpdate(entry, before, input) {
   const update = { ...input, doc: updatedDoc(before, input) }
