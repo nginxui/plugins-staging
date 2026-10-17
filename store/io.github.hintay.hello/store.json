@@ -1,7 +1,8 @@
 {
   "name": {
     "en": "Hello Templates",
-    "zh_CN": "Hello 模板"
+    "zh_CN": "Hello 模板",
+    "it_IT": "Modelli Hello"
   },
   "description": {
     "en": "A test plugin with one configuration template. It exists to test the plugin catalog and the developer portal.",
