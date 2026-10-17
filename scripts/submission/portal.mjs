@@ -144,13 +144,21 @@ function updateEntry(parsed) {
     return
   }
   const content = `${JSON.stringify(result.entry, null, 2)}\n`
+  // Texts that move out of the catalog leave no store directory behind.
+  const drafts = { [file]: content }
+  if (before.store?.source === 'catalog' && result.entry.store?.source !== 'catalog') {
+    for (const name of ['store.json', 'README.md']) {
+      if (existsSync(`store/${result.entry.id}/${name}`))
+        drafts[`store/${result.entry.id}/${name}`] = null
+    }
+  }
   console.log(`updated ${file}: ${result.summary}, ${classified.class}`)
   setOutput('result', 'ok')
   setOutput('message', `Updated \`${file}\`: ${result.summary}.`)
   setOutput('id', result.entry.id)
   setOutput('path', file)
   setOutput('entry', content)
-  setOutput('drafts', JSON.stringify({ [file]: content }))
+  setOutput('drafts', JSON.stringify(drafts))
   setOutput('class', classified.class)
   setOutput('fields', JSON.stringify(classified.fields))
   setOutput('summary', result.summary)

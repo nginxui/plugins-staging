@@ -7,7 +7,7 @@ name: Check entries
 # entry needs at least one release that verifies.
 #
 # Called by validate.yml for a pull request. drafts maps an entry file that
-# is not in the repository to its content. The outputs carry a preview of each entry and the
+# is not in the repository to its content, or to null to remove it. The outputs carry a preview of each entry and the
 # problems found, for the caller to show.
 on:
   workflow_call:
@@ -62,11 +62,19 @@ jobs:
           DRAFTS: ${{ inputs.drafts }}
         run: |
           node -e '
-            const { mkdirSync, writeFileSync } = require("node:fs")
+            const { mkdirSync, readdirSync, rmSync, writeFileSync } = require("node:fs")
             const path = require("node:path")
             for (const [file, content] of Object.entries(JSON.parse(process.env.DRAFTS))) {
               if (!/^plugins\/[a-z0-9][a-z0-9.-]*\.json$/.test(file) && !/^store\/[a-z0-9][a-z0-9.-]*\/(store\.json|README\.md)$/.test(file))
                 throw new Error(`refusing to write ${file}`)
+              // null removes the file, as the pull request will.
+              if (content === null) {
+                rmSync(file, { force: true })
+                if (readdirSync(path.dirname(file)).length === 0)
+                  rmSync(path.dirname(file), { recursive: true })
+                console.log(`removed ${file}`)
+                continue
+              }
               mkdirSync(path.dirname(file), { recursive: true })
               writeFileSync(file, content)
               console.log(`wrote ${file}`)
