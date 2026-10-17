@@ -20,6 +20,8 @@ test('an update with texts changes those languages only, on the document the cat
   const names = applyStoreUpdate(entry, now, { doc: {}, texts: { name: { ja_JP: 'ワイ' } } })
   assert.equal(names.class, 'reviewed')
   assert.deepEqual(JSON.parse(names.files['store/io.x.y/store.json']), { ...now, name: { en: 'Y', ja_JP: 'ワイ' } })
+  // The entry takes the reviewed name, so the listing shows it at once.
+  assert.deepEqual(JSON.parse(names.files['plugins/io.x.y.json']).name, { en: 'Y', ja_JP: 'ワイ' })
   const texts = applyStoreUpdate(entry, now, { doc: { homepage_url: 'https://y.example' }, fields: ['homepage_url'], texts: { 'description': { es: 'Texto' }, 'permission_reasons.network': { de_DE: null } } })
   assert.equal(texts.class, 'self_service')
   assert.deepEqual(JSON.parse(texts.files['store/io.x.y/store.json']), { name: { en: 'Y' }, description: { en: 'Old', ko_KR: '설명', es: 'Texto' }, homepage_url: 'https://y.example' })

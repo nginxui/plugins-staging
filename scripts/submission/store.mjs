@@ -107,7 +107,23 @@ export function applyStoreUpdate(entry, before, input) {
   if (typeof update.readme === 'string' && update.readme.trim())
     files[`${dir}/README.md`] = `${update.readme.slice(0, README_LIMIT).trimEnd()}\n`
 
-  const after = moving ? { ...entry, store: { source: 'catalog' } } : entry
+  let after = moving ? { ...entry, store: { source: 'catalog' } } : entry
+  // A name is reviewed with the change that brings it. The entry holds the
+  // reviewed names the listing shows, so it takes them too, and the next
+  // deploy does not report the same names for review again. English stays
+  // in the entry even when a document leaves it out.
+  const name = { ...after.name }
+  for (const locale of new Set([...Object.keys(before?.name ?? {}), ...Object.keys(update.doc.name ?? {})])) {
+    const value = update.doc.name?.[locale]
+    if (value === before?.name?.[locale])
+      continue
+    if (value)
+      name[locale] = value
+    else if (locale !== 'en')
+      delete name[locale]
+  }
+  if (!same(name, after.name))
+    after = { ...after, name }
   const classified = classify(entry, after)
   const fields = [...classified.fields]
   const names = !same(before?.name, update.doc.name)
@@ -120,7 +136,7 @@ export function applyStoreUpdate(entry, before, input) {
   if (!fields.length)
     return { error: 'The store document already is as asked.' }
   const reviewed = moving || names
-  if (moving)
+  if (after !== entry)
     files[`plugins/${entry.id}.json`] = `${JSON.stringify(after, null, 2)}\n`
   return {
     files,
