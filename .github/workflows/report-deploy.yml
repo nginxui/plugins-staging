@@ -41,6 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           CATALOG_URL: https://plugins.nginxui.com
           PLUGIN_SPEC_DIR: ${{ github.workspace }}/.plugin-spec
+          # Screenshots uploaded in the portal staging site.
+          MEDIA_URL: https://plugin-media-staging.nginxui.com
         run: node scripts/build-catalog.mjs --out dist --pending pending-names.json
 
       - name: Report to the developer portal
