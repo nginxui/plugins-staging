@@ -6,6 +6,7 @@
   "description": {
     "en": "A test plugin with one configuration template. It exists to test the plugin catalog and the developer portal.",
     "zh_CN": "只包含一个配置模板的测试插件，用于测试插件目录和开发者中心。",
-    "it_IT": "Un plugin di prova con un modello di configurazione. Serve a provare il catalogo dei plugin e il centro sviluppatori."
+    "it_IT": "Un plugin di prova con un modello di configurazione. Serve a provare il catalogo dei plugin e il centro sviluppatori.",
+    "de_DE": "Ein Test-Plugin mit einer Konfigurationsvorlage. Es dient zum Testen des Plugin-Katalogs und des Entwicklerportals."
   }
 }
