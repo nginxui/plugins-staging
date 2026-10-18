@@ -56,3 +56,17 @@ test('a maintainer restores a revoked signer with a reason', () => {
   assert.match(applyMaintainerUpdate(revoked, blocked, { plugin_id: 'io.x.y', restore_signers: ['3BE1D199B634ED87'] }).error, /reason/)
   assert.match(applyMaintainerUpdate(revoked, blocked, { plugin_id: 'io.x.y', restore_signers: ['AAAAAAAAAAAAAAAA'], reason: 'x' }).error, /Not revoked/)
 })
+
+test('a revoked signer of a delisted plugin is restored in its record', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'restore-'))
+  try {
+    mkdirSync(path.join(root, 'delisted'))
+    writeFileSync(path.join(root, 'delisted', 'io.x.y.json'), JSON.stringify({ id: 'io.x.y', reason: 'x', delisted_at: '2026-10-18', revoked_signers: ['3BE1D199B634ED87'] }))
+    const result = applyMaintainerUpdate(null, blocked, { plugin_id: 'io.x.y', restore_signers: ['3BE1D199B634ED87'], reason: 'Safe after all.' }, { root })
+    assert.deepEqual(JSON.parse(result.files['delisted/io.x.y.json']), { id: 'io.x.y', reason: 'x', delisted_at: '2026-10-18' })
+    assert.match(applyMaintainerUpdate(null, blocked, { plugin_id: 'io.a.b', restore_signers: ['3BE1D199B634ED87'], reason: 'x' }, { root }).error, /not listed/)
+  }
+  finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

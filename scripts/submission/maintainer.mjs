@@ -34,22 +34,28 @@ export function applyMaintainerUpdate(entry, blocked, update, { root = ROOT, tod
   }
   // A signer the author revoked by mistake, or whose key turned out safe.
   if (update.restore_signers !== undefined) {
-    if (!entry)
+    // A delisted plugin keeps its revocations in delisted/<id>.json, which a
+    // new listing takes over; restoring there lets it be listed again.
+    const recordFile = path.join(root, 'delisted', `${id}.json`)
+    const record = !entry && existsSync(recordFile) ? JSON.parse(readFileSync(recordFile, 'utf8')) : null
+    if (!entry && !record)
       return { error: 'The plugin is not listed.' }
     const ids = Array.isArray(update.restore_signers) ? update.restore_signers.map(id => String(id).toUpperCase()) : []
     if (!ids.length || !ids.every(id => /^[0-9A-F]{16}$/.test(id)))
       return { error: 'The signers to restore are not key ids.' }
     if (!String(update.reason ?? '').trim())
       return { error: 'Restoring a signer needs a reason.' }
-    const current = (entry.revoked_signers ?? []).map(id => id.toUpperCase())
+    const target = entry ? `plugins/${id}.json` : `delisted/${id}.json`
+    const holder = entry ?? record
+    const current = (holder.revoked_signers ?? []).map(id => id.toUpperCase())
     const missing = ids.filter(id => !current.includes(id))
     if (missing.length)
       return { error: `Not revoked: ${missing.join(', ')}.` }
-    const base = files[`plugins/${id}.json`] ? JSON.parse(files[`plugins/${id}.json`]) : entry
+    const base = files[target] ? JSON.parse(files[target]) : holder
     const after = { ...base, revoked_signers: current.filter(signer => !ids.includes(signer)) }
     if (!after.revoked_signers.length)
       delete after.revoked_signers
-    files[`plugins/${id}.json`] = `${JSON.stringify(after, null, 2)}\n`
+    files[target] = `${JSON.stringify(after, null, 2)}\n`
     summary.push(`restore signer ${ids.join(', ')}`)
     fields.push({ field: 'revoked_signers', change: 'changed', class: 'maintainer' })
   }
