@@ -15,7 +15,7 @@
     "notifications"
   ],
   "license": "MIT",
-  "trust": "community",
+  "trust": "verified",
   "store": {
     "source": "repo",
     "follow": "branch"
