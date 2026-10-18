@@ -53,7 +53,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSyn
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { buildKeyring, serializeKeyring } from './build-partners.mjs'
+import { buildKeyring, keyringContent, serializeKeyring } from './build-partners.mjs'
 import { listReleases, parseGithubRepoUrl } from './ci/github.mjs'
 import { changedDigests, releaseFromGithub, releaseText } from './ci/release-record.mjs'
 import { assetDigest, findPlatformAssets, findPortableAsset } from './ci/release-assets.mjs'
@@ -194,7 +194,7 @@ function releaseFingerprint(entry, ghRelease, version) {
  * verify is only left out. tags maps a version to its tag, icons a version
  * verified in this build to the icon of its package.
  */
-async function entryReleases(entry, published, { token, verifyNewest, failed, visited, repin }) {
+async function entryReleases(entry, published, { token, verifyNewest, failed, visited, repin, partnerRevoked = new Set() }) {
   const failures = []
   const pinned = new Map((published?.releases ?? []).map(release => [release.version, release]))
   for (const version of pinned.keys()) {
@@ -207,7 +207,7 @@ async function entryReleases(entry, published, { token, verifyNewest, failed, vi
   if (entry.distribution?.type === 'vendor') {
     const vendor = await vendorReleases(entry, published, { failed, visited })
     const yankedVendor = new Set(entry.yanked ?? [])
-    const revokedVendor = new Set((entry.revoked_signers ?? []).map(id => id.toUpperCase()))
+    const revokedVendor = new Set([...(entry.revoked_signers ?? []).map(id => id.toUpperCase()), ...partnerRevoked])
     const sortedVendor = sortReleases(vendor.releases)
     for (const release of sortedVendor) {
       if (yankedVendor.has(release.version) || revokedVendor.has(release.signer))
@@ -287,9 +287,9 @@ async function entryReleases(entry, published, { token, verifyNewest, failed, vi
   }
 
   const sorted = sortReleases(releases)
-  // A release signed by a withdrawn signing key is yanked like a listed one.
   const yanked = new Set(entry.yanked ?? [])
-  const revoked = new Set((entry.revoked_signers ?? []).map(id => id.toUpperCase()))
+  // A signing key the author withdrew, or a partner key the project revoked.
+  const revoked = new Set([...(entry.revoked_signers ?? []).map(id => id.toUpperCase()), ...partnerRevoked])
   // The newest release a host may still install. One withdrawn by this very
   // change is not checked again, so a leaked key can be revoked at once.
   const newest = sorted.findLast(release => !yanked.has(release.version) && !revoked.has(release.signer))
@@ -476,9 +476,11 @@ async function main() {
   const mirror = mirrorConfig()
   const mirrorSeen = new Map()
   console.log(mirror ? `mirroring screenshots into R2 bucket ${mirror.bucket}` : 'no R2 credentials, screenshots keep their source URLs')
+  // Releases signed by a revoked partner key are yanked like a revoked signer's.
+  const partnerRevoked = new Set(keyringContent().revoked)
   for (const entry of loadEntries(values.only)) {
     const published = publishedById.get(entry.id)
-    const result = await entryReleases(entry, published, { token, verifyNewest: values['verify-newest'], failed, visited, repin })
+    const result = await entryReleases(entry, published, { token, verifyNewest: values['verify-newest'], failed, visited, repin, partnerRevoked })
     failures.push(...result.failures)
     const shownRelease = displayRelease(result.releases)
     const store = await readStoreSource(entry, { repo: result.repo, tag: shownRelease ? result.tags.get(shownRelease.version) : undefined, token, root: ROOT })
