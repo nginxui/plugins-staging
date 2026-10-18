@@ -8,7 +8,7 @@
     "es": "Plantillas Hello"
   },
   "author": "Hintay",
-  "author_public_key": "RWQ+8Cm/aigr5eJbmeXC835X6OnB9I07WAWwB9DF1g3xTqEDtoFsCVR0",
+  "author_public_key": "RWQMjlpGTfJfj9TYKbwPjY8Jk7TI1aCK9A1v5vYIYx6dRcQjtqWsyrB1",
   "repository_url": "https://github.com/Hintay/nginx-ui-plugin-hello",
   "categories": [
     "templates",
@@ -19,5 +19,9 @@
   "store": {
     "source": "repo",
     "follow": "branch"
-  }
+  },
+  "yanked": [
+    "0.1.0",
+    "0.1.1"
+  ]
 }
