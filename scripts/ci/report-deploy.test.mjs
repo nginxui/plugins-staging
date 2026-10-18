@@ -10,6 +10,8 @@ test('a deploy report holds every entry and the plugins with a verified release'
   const dir = mkdtempSync(path.join(tmpdir(), 'report-'))
   mkdirSync(path.join(dir, 'plugins'))
   mkdirSync(path.join(dir, 'dist/v1'), { recursive: true })
+  mkdirSync(path.join(dir, 'delisted'))
+  writeFileSync(path.join(dir, 'delisted/io.d.gone.json'), JSON.stringify({ id: 'io.d.gone', reason: 'Abandoned.', delisted_at: '2026-10-18' }))
   writeFileSync(path.join(dir, 'plugins/io.a.listed.json'), JSON.stringify({ id: 'io.a.listed', name: { en: 'A' } }))
   writeFileSync(path.join(dir, 'plugins/io.b.unverified.json'), JSON.stringify({ id: 'io.b.unverified', name: { en: 'B' } }))
   writeFileSync(path.join(dir, 'dist/v1/index.json'), JSON.stringify({ plugins: [
@@ -17,10 +19,11 @@ test('a deploy report holds every entry and the plugins with a verified release'
     { id: 'io.b.unverified', releases: [] },
   ] }))
   writeFileSync(path.join(dir, 'pending.json'), JSON.stringify({ plugins: [{ id: 'io.a.listed', version: '1.0.0', names: { ja_JP: 'エー' }, blocked: {} }, { id: 'io.c', version: '1.0.0', names: {}, blocked: { en: { name: 'Official C', word: 'official' } } }] }))
-  const report = buildReport({ commit: 'abc', entriesDir: path.join(dir, 'plugins'), indexFile: path.join(dir, 'dist/v1/index.json'), pendingFile: path.join(dir, 'pending.json') })
+  const report = buildReport({ commit: 'abc', entriesDir: path.join(dir, 'plugins'), delistedDir: path.join(dir, 'delisted'), indexFile: path.join(dir, 'dist/v1/index.json'), pendingFile: path.join(dir, 'pending.json') })
   assert.deepEqual(report.pending, [{ id: 'io.a.listed', version: '1.0.0', names: { ja_JP: 'エー' } }])
   assert.equal(report.commit, 'abc')
   assert.deepEqual(Object.keys(report.entries).sort(), ['io.a.listed', 'io.b.unverified'])
   assert.deepEqual(report.listed, ['io.a.listed'])
+  assert.deepEqual(report.delisted, ['io.d.gone'])
   assert.deepEqual(report.versions, { 'io.a.listed': { '1.1.0': '2026-10-05T08:00:00Z', '1.0.0': null } })
 })

@@ -2,7 +2,8 @@
 // Tells the developer portal what a deploy published, so changes merged into
 // the catalog move to "live" there: the commit, the entry of every plugin in
 // the sources, the plugins the published index lists and their versions, so
-// the portal can tell how long a release took to list. The request carries
+// the portal can tell how long a release took to list, and the plugins with a
+// delisted record, whose changes edit that record instead of an entry. The request carries
 // an OIDC token of the run, which the portal checks against GitHub's keys,
 // this repository and this workflow, so no shared secret is needed.
 //
@@ -16,7 +17,7 @@ import process from 'node:process'
 
 /** The report of a deploy from the entry files, the published index and the
  * names waiting for review, which the portal turns into reviewed changes. */
-export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/v1/index.json', pendingFile = 'pending-names.json' }) {
+export function buildReport({ commit, entriesDir = 'plugins', delistedDir = 'delisted', indexFile = 'dist/v1/index.json', pendingFile = 'pending-names.json' }) {
   const entries = {}
   for (const file of readdirSync(entriesDir).filter(name => name.endsWith('.json'))) {
     const entry = JSON.parse(readFileSync(path.join(entriesDir, file), 'utf8'))
@@ -33,7 +34,10 @@ export function buildReport({ commit, entriesDir = 'plugins', indexFile = 'dist/
   const pending = existsSync(pendingFile)
     ? (JSON.parse(readFileSync(pendingFile, 'utf8')).plugins ?? []).filter(p => Object.keys(p.names ?? {}).length).map(p => ({ id: p.id, version: p.version, names: p.names }))
     : []
-  return { commit, entries, listed, versions, pending }
+  const delisted = existsSync(delistedDir)
+    ? readdirSync(delistedDir).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(path.join(delistedDir, name), 'utf8')).id).sort()
+    : []
+  return { commit, entries, listed, versions, pending, delisted }
 }
 
 async function idToken(audience) {
