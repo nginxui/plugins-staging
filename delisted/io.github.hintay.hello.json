@@ -1,8 +1,5 @@
 {
   "id": "io.github.hintay.hello",
   "reason": "测试：验证下架流程，所有版本已撤回。",
-  "delisted_at": "2026-10-18",
-  "revoked_signers": [
-    "3BE1D199B634ED87"
-  ]
+  "delisted_at": "2026-10-18"
 }
