@@ -59,7 +59,7 @@ import { changedDigests, releaseFromGithub, releaseText } from './ci/release-rec
 import { assetDigest, findPlatformAssets, findPortableAsset } from './ci/release-assets.mjs'
 import { inferChannel, keepRecentNotes, sortReleases, tagVersion } from './ci/releases.mjs'
 import { compareSemver, isSemver } from './ci/semver.mjs'
-import { deriveListing, displayRelease, listingChanges } from './ci/listing.mjs'
+import { deriveListing, displayRelease, listingChanges, textRelease } from './ci/listing.mjs'
 import { mirrorConfig, mirrorScreenshots } from './ci/media-mirror.mjs'
 import { readStoreSource } from './ci/store-source.mjs'
 import { vendorReleases } from './ci/vendor-feed.mjs'
@@ -482,7 +482,7 @@ async function main() {
     const published = publishedById.get(entry.id)
     const result = await entryReleases(entry, published, { token, verifyNewest: values['verify-newest'], failed, visited, repin, partnerRevoked })
     failures.push(...result.failures)
-    const shownRelease = displayRelease(result.releases)
+    const shownRelease = textRelease(result.releases)
     const store = await readStoreSource(entry, { repo: result.repo, tag: shownRelease ? result.tags.get(shownRelease.version) : undefined, token, root: ROOT })
     if (store?.error)
       console.warn(`::warning title=${entry.id}::the store document cannot be read, the listing uses the manifest: ${store.error}`)

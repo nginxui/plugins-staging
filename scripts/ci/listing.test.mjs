@@ -1,7 +1,7 @@
 // Run with: node --test scripts/ci/*.test.mjs
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
-import { deriveListing, displayRelease, listingChanges, permissionNotes } from './listing.mjs'
+import { deriveListing, displayRelease, listingChanges, permissionNotes, textRelease } from './listing.mjs'
 
 const repo = { owner: 'example', repo: 'demo' }
 const site = 'https://plugins.nginxui.com'
@@ -48,6 +48,15 @@ test('the display release is the newest stable one that is not yanked', () => {
   assert.equal(displayRelease([releases[0], { ...releases[1], yanked: true }, releases[2]]).version, '1.0.0')
   assert.equal(displayRelease([releases[2]]).version, '1.2.0-beta.1')
   assert.equal(displayRelease([{ ...releases[2], yanked: true }]), undefined)
+})
+
+test('an entry whose releases are all yanked keeps the texts of the newest', async () => {
+  const yanked = releases.map(release => ({ ...release, yanked: true }))
+  assert.equal(textRelease(yanked).version, '1.2.0-beta.1')
+  assert.equal(textRelease(releases).version, '1.1.0')
+  const { fields, warnings } = await deriveListing(entry, yanked.slice(0, 2), undefined, { repo, tags, icons: new Map(), site })
+  assert.equal(fields.description.en, 'Does things')
+  assert.doesNotMatch(warnings.join('\n'), /no English description/)
 })
 
 test('a listing comes from the display release, the entry overrides it', async () => {

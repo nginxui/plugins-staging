@@ -37,6 +37,12 @@ export function displayRelease(releases) {
   return offered.findLast(release => (release.channel ?? inferChannel(release.version)) === 'stable') ?? offered.at(-1)
 }
 
+/** The release the listing takes its texts from: the one it shows, else the
+ * newest, so an entry whose releases are all yanked keeps its texts. */
+export function textRelease(releases) {
+  return displayRelease(releases) ?? releases.at(-1)
+}
+
 /** The path of an icon the catalog serves for a release. */
 export function iconPath(id, version, type) {
   return `v1/icons/${id}/${version}.${type}`
@@ -118,7 +124,7 @@ function manifestScreenshots(manifest, image) {
  */
 export async function deriveListing(entry, releases, published, { repo, tags, icons, site, store = null }) {
   const warnings = []
-  const shown = displayRelease(releases)
+  const shown = textRelease(releases)
   const manifest = store ? withStore(shown?.manifest, store.doc) : shown?.manifest ?? {}
   const tag = shown ? tags.get(shown.version) : undefined
   const image = store?.image ?? (repo && tag ? file => rawUrl(repo, tag, file) : null)
