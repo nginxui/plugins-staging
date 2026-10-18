@@ -7,8 +7,17 @@ import { reservedWord } from '../ci/names.mjs'
 import { isSemver } from '../ci/semver.mjs'
 
 const SIGNER = /^[0-9a-f]{16}$/i
-const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store', 'commercial', 'names']
+const KINDS = ['yank', 'unyank', 'revoke_signers', 'categories', 'store', 'commercial', 'names', 'author_public_key']
 const LOCALE = /^[a-z]{2,3}(_[A-Z]{2})?$/
+
+/** Whether text is the key line of a minisign public key: "Ed", a key id and
+ * 32 key bytes in base64. */
+function isPublicKeyLine(text) {
+  if (typeof text !== 'string' || !/^[A-Za-z0-9+/]{56}$/.test(text))
+    return false
+  const bytes = Buffer.from(text, 'base64')
+  return bytes.length === 42 && bytes[0] === 0x45 && bytes[1] === 0x64
+}
 
 /** A list of strings, or null when it is not one. */
 function strings(value) {
@@ -17,8 +26,9 @@ function strings(value) {
 
 /**
  * Applies operations to an entry. Returns { entry, summary } or { error }.
- * operations: { yank, unyank, revoke_signers, categories, store }, each
- * optional. store moves the store document and classifies as reviewed.
+ * operations: { yank, unyank, revoke_signers, categories, store, commercial,
+ * names, author_public_key }, each optional. store, names and
+ * author_public_key classify as reviewed.
  */
 export function applyOperations(before, operations, knownCategories) {
   if (!before)
@@ -93,6 +103,17 @@ export function applyOperations(before, operations, knownCategories) {
     }
     entry.name = { ...entry.name, ...Object.fromEntries(Object.entries(names).map(([l, n]) => [l, n.trim()])) }
     summary.push(`list the names in ${Object.keys(names).join(', ')}`)
+  }
+
+  // A new primary key for a lost or leaked one; reviewed. Its certificates
+  // replace the old ones, so the portal yanks the listed versions with it.
+  if (operations.author_public_key !== undefined) {
+    if (!isPublicKeyLine(operations.author_public_key))
+      return { error: 'The primary key is not the key line of a minisign public key.' }
+    if (operations.author_public_key === before.author_public_key)
+      return { error: 'The primary key is the current one.' }
+    entry.author_public_key = operations.author_public_key
+    summary.push('replace the primary key')
   }
 
   // Commercial details of a partner plugin, or null to drop them; reviewed.

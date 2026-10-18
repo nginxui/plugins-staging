@@ -68,3 +68,14 @@ test('names a release gives are reviewed and refused when they claim too much', 
   assert.ok(applyOperations(entry, { names: { ja_JP: '公式ワイ' } }, known).error)
 })
 
+
+test('a new primary key is reviewed and must be a minisign key line', () => {
+  const line = Buffer.from([0x45, 0x64, ...Array.from({ length: 40 }, (_, i) => i)]).toString('base64')
+  const result = applyOperations({ ...entry, author_public_key: 'RWQold' }, { author_public_key: line, yank: ['1.0.0'] }, known)
+  assert.equal(result.entry.author_public_key, line)
+  assert.deepEqual(result.entry.yanked, ['1.0.0'])
+  assert.equal(result.summary, 'yank 1.0.0, replace the primary key')
+  assert.equal(classify({ ...entry, author_public_key: 'RWQold' }, result.entry).class, 'reviewed')
+  assert.match(applyOperations(entry, { author_public_key: 'RWQ not a key' }, known).error, /minisign/)
+  assert.match(applyOperations({ ...entry, author_public_key: line }, { author_public_key: line }, known).error, /current one/)
+})
