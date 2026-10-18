@@ -14,6 +14,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { delistedProblems } from './lib/delisted.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { parsePublicKey } from './lib/minisign.mjs'
 import { buildKeyring } from './build-partners.mjs'
@@ -46,6 +47,29 @@ function loadJson(file) {
 }
 
 const STORE_DIR = path.join(ROOT, 'store')
+
+/** Checks every delisted/<id>.json: it holds up and its id is not listed. */
+function checkDelisted(entries) {
+  const dir = path.join(ROOT, 'delisted')
+  if (!existsSync(dir))
+    return
+  const listed = new Set([...entries.values()].map(entry => entry.id))
+  for (const name of readdirSync(dir).filter(file => file.endsWith('.json')).sort()) {
+    const file = path.join(dir, name)
+    let record
+    try {
+      record = loadJson(file)
+    }
+    catch (err) {
+      fail(`delisted/${name}`, `invalid JSON: ${err.message}`)
+      continue
+    }
+    for (const problem of delistedProblems(record, file))
+      fail(`delisted/${name}`, problem)
+    if (listed.has(record.id))
+      fail(`delisted/${name}`, 'the plugin is listed, drop the record')
+  }
+}
 
 /** Checks every store/<id>/store.json: it can be listed, and its entry
  * reads the store texts from the catalog. */
@@ -327,6 +351,7 @@ function main() {
   checkCommercial(entries)
   checkBlocked(entries)
   checkStoreDocuments(entries)
+  checkDelisted(entries)
   validatePartners()
   checkKeyring()
 

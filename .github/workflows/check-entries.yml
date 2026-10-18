@@ -65,7 +65,7 @@ jobs:
             const { mkdirSync, readdirSync, rmSync, writeFileSync } = require("node:fs")
             const path = require("node:path")
             for (const [file, content] of Object.entries(JSON.parse(process.env.DRAFTS))) {
-              if (!/^plugins\/[a-z0-9][a-z0-9.-]*\.json$/.test(file) && !/^store\/[a-z0-9][a-z0-9.-]*\/(store\.json|README\.md)$/.test(file))
+              if (!/^(plugins|delisted)\/[a-z0-9][a-z0-9.-]*\.json$/.test(file) && !/^store\/[a-z0-9][a-z0-9.-]*\/(store\.json|README\.md)$/.test(file))
                 throw new Error(`refusing to write ${file}`)
               // null removes the file, as the pull request will.
               if (content === null) {

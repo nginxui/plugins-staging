@@ -2,7 +2,7 @@
 // of a listing, delist it, and block a plugin id or repository so it cannot
 // come back. Each becomes a pull request; a null file deletes that path.
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -41,6 +41,9 @@ export function applyMaintainerUpdate(entry, blocked, update, { root = ROOT, tod
       if (existsSync(path.join(root, 'store', id, file)))
         files[`store/${id}/${file}`] = null
     }
+    // The catalog keeps a record of the take down, so hosts with the plugin
+    // installed hear of it and of what the entry had withdrawn.
+    files[`delisted/${id}.json`] = `${JSON.stringify(delistedRecord(entry, update.delist.reason, today), null, 2)}\n`
     summary.push(`delist ${id}`)
     fields.push({ field: 'listing', change: 'removed', class: 'maintainer' })
   }
@@ -70,4 +73,36 @@ export function applyMaintainerUpdate(entry, blocked, update, { root = ROOT, tod
   if (!summary.length)
     return { error: 'No maintainer action was given.' }
   return { files, summary: summary.join(', '), fields }
+}
+
+/** The record delisted/<id>.json keeps of a delisted entry. */
+export function delistedRecord(entry, reason, today) {
+  return {
+    id: entry.id,
+    reason: String(reason).trim().slice(0, 500),
+    delisted_at: today,
+    ...(entry.yanked?.length ? { yanked: entry.yanked } : {}),
+    ...(entry.revoked_signers?.length ? { revoked_signers: entry.revoked_signers } : {}),
+  }
+}
+
+/**
+ * A new listing of an id the catalog delisted keeps what the old entry had
+ * withdrawn, so taking a plugin down and listing it again never brings a
+ * yanked version or a revoked key back. Returns the entry and the drafts that
+ * remove the record.
+ */
+export function relistDelisted(entry, { root = ROOT } = {}) {
+  const file = path.join(root, 'delisted', `${entry.id}.json`)
+  if (!existsSync(file))
+    return { entry, drafts: {} }
+  const record = JSON.parse(readFileSync(file, 'utf8'))
+  const merged = { ...entry }
+  const yanked = [...new Set([...(entry.yanked ?? []), ...(record.yanked ?? [])])]
+  const revoked = [...new Set([...(entry.revoked_signers ?? []), ...(record.revoked_signers ?? [])].map(id => id.toUpperCase()))]
+  if (yanked.length)
+    merged.yanked = yanked
+  if (revoked.length)
+    merged.revoked_signers = revoked
+  return { entry: merged, drafts: { [`delisted/${entry.id}.json`]: null } }
 }

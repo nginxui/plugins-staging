@@ -25,7 +25,7 @@ import { classify } from '../ci/classify.mjs'
 import { draftEntry, knownCategories } from './core.mjs'
 import { applyOperations } from './operations.mjs'
 import { loadBlocked } from './core.mjs'
-import { applyMaintainerUpdate } from './maintainer.mjs'
+import { applyMaintainerUpdate, relistDelisted } from './maintainer.mjs'
 import { applyPartnerUpdate, draftVendorEntry, readPartner } from './partner.mjs'
 import { applyStoreUpdate } from './store.mjs'
 
@@ -264,14 +264,15 @@ function listVendorPlugin(parsed) {
     setOutput('message', `${draft.entry.id} is listed already.`)
     return
   }
-  const content = `${JSON.stringify(draft.entry, null, 2)}\n`
-  const classified = classify(null, draft.entry)
+  const relisted = relistDelisted(draft.entry)
+  const content = `${JSON.stringify(relisted.entry, null, 2)}\n`
+  const classified = classify(null, relisted.entry)
   setOutput('result', 'ok')
   setOutput('message', `Drafted \`${file}\` for the vendor feed ${draft.entry.distribution.releases_url}.`)
   setOutput('id', draft.entry.id)
   setOutput('path', file)
   setOutput('entry', content)
-  setOutput('drafts', JSON.stringify({ [file]: content }))
+  setOutput('drafts', JSON.stringify({ [file]: content, ...relisted.drafts }))
   setOutput('class', classified.class)
   setOutput('fields', JSON.stringify(classified.fields))
   setOutput('eligibility', parsed.eligibility)
@@ -317,9 +318,12 @@ async function main() {
     setOutput('message', draft.rejection)
     return
   }
-  const { entry, repository, tag } = draft
-  const file = `plugins/${entry.id}.json`
+  const { repository, tag } = draft
+  const file = `plugins/${draft.entry.id}.json`
   const before = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
+  // Listing a delisted id again keeps what its old entry had withdrawn.
+  const relisted = before ? { entry: draft.entry, drafts: {} } : relistDelisted(draft.entry)
+  const entry = relisted.entry
   const classified = classify(before, entry)
   const content = `${JSON.stringify(entry, null, 2)}\n`
   console.log(`drafted ${file} from ${repository.full_name}@${tag}, ${classified.class}`)
@@ -328,7 +332,7 @@ async function main() {
   setOutput('id', entry.id)
   setOutput('path', file)
   setOutput('entry', content)
-  setOutput('drafts', JSON.stringify({ [file]: content }))
+  setOutput('drafts', JSON.stringify({ [file]: content, ...relisted.drafts }))
   setOutput('class', classified.class ?? '')
   setOutput('fields', JSON.stringify(classified.fields))
   setOutput('eligibility', parsed.eligibility)

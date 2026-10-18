@@ -64,6 +64,7 @@ import { mirrorConfig, mirrorScreenshots } from './ci/media-mirror.mjs'
 import { readStoreSource } from './ci/store-source.mjs'
 import { vendorReleases } from './ci/vendor-feed.mjs'
 import { verifyRelease } from './ci/verify-release.mjs'
+import { loadDelisted } from './lib/delisted.mjs'
 import { validateAgainstSchemaFile } from './lib/schema-validator.mjs'
 import { SPEC_SCHEMAS, specSchema } from './lib/spec.mjs'
 import { renderBadges } from './badges.mjs'
@@ -531,6 +532,10 @@ async function main() {
   if (updatedAt)
     index.updated_at = updatedAt
   index.plugins = plugins
+  // Plugins taken down, unless listed again.
+  const delisted = loadDelisted(ROOT).filter(record => !plugins.some(plugin => plugin.id === record.id))
+  if (delisted.length)
+    index.delisted = delisted
   const keyring = buildKeyring(publishedKeyring)
 
   // The documents follow the contract in plugin-spec.
