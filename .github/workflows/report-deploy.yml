@@ -1,8 +1,9 @@
 name: Report deploy
 
-# The test catalog does not publish a site. This builds the catalog the way
-# deploy.yml does and sends the developer portal staging site the same report,
-# so changes merged here move to "live" there.
+# The test catalog has no Pages site. This builds the catalog the way
+# deploy.yml does, sends the developer portal staging site the same report, so
+# changes merged here move to "live" there, and the catalog files, which the
+# portal serves at plugins-staging.nginxui.com.
 on:
   push:
     branches: [main]
@@ -39,18 +40,23 @@ jobs:
       - name: Build the catalog
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          CATALOG_URL: https://plugins.nginxui.com
+          CATALOG_URL: ${{ vars.CATALOG_URL }}
           PLUGIN_SPEC_DIR: ${{ github.workspace }}/.plugin-spec
           # Screenshots uploaded in the portal staging site.
-          MEDIA_URL: https://plugin-media-staging.nginxui.com
+          MEDIA_URL: ${{ vars.MEDIA_URL }}
         run: node scripts/build-catalog.mjs --out dist --pending pending-names.json
+
+      - name: Publish the catalog files
+        env:
+          PORTAL_URL: ${{ vars.PORTAL_URL }}
+        run: node scripts/ci/publish-staging-site.mjs dist
 
       - name: Report to the developer portal
         env:
           PORTAL_URL: ${{ vars.PORTAL_URL }}
         run: node scripts/ci/report-deploy.mjs
 
-      # The test catalog publishes no site; the build is kept to look at.
+      # The whole build, site pages included, is kept to look at.
       - uses: actions/upload-artifact@v7
         if: always()
         with:
