@@ -1,4 +1,13 @@
 {
-  "plugins": [],
-  "repositories": []
+  "plugins": [
+    "io.github.example-spam.fake"
+  ],
+  "repositories": [],
+  "reasons": {
+    "io.github.example-spam.fake": {
+      "reason": "测试：验证屏蔽列表流程，虚构的插件 ID。",
+      "added_by": "Hintay",
+      "added_at": "2026-10-18"
+    }
+  }
 }
