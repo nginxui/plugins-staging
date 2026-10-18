@@ -94,6 +94,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PUBLISHED: ${{ vars.CATALOG_URL || 'https://plugins.nginxui.com' }}
+          # Where uploaded screenshots are served, as deploy.yml reads them.
+          MEDIA_URL: ${{ vars.MEDIA_URL }}
           PLUGIN_SIGNING_PUBLIC_KEY: ${{ vars.PLUGIN_SIGNING_PUBLIC_KEY }}
           ENTRIES: ${{ inputs.entries }}
         run: |
