@@ -23,5 +23,8 @@
   "yanked": [
     "0.1.0",
     "0.1.1"
+  ],
+  "revoked_signers": [
+    "3BE1D199B634ED87"
   ]
 }
