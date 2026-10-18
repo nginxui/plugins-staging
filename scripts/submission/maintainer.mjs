@@ -12,7 +12,8 @@ const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/
 
 /**
  * entry is plugins/<id>.json or null, blocked is blocked.json, update is
- * { plugin_id, trust, delist: { reason }, block: { plugin, repository, reason }, by }.
+ * { plugin_id, trust, restore_signers, reason, delist: { reason },
+ * block: { plugin, repository, reason }, by }.
  * Returns { files, summary, fields } or { error }.
  */
 export function applyMaintainerUpdate(entry, blocked, update, { root = ROOT, today = new Date().toISOString().slice(0, 10) } = {}) {
@@ -30,6 +31,27 @@ export function applyMaintainerUpdate(entry, blocked, update, { root = ROOT, tod
     files[`plugins/${id}.json`] = `${JSON.stringify({ ...entry, trust: update.trust }, null, 2)}\n`
     summary.push(`set the trust of ${id} to ${update.trust}`)
     fields.push({ field: 'trust', change: 'changed', class: 'maintainer' })
+  }
+  // A signer the author revoked by mistake, or whose key turned out safe.
+  if (update.restore_signers !== undefined) {
+    if (!entry)
+      return { error: 'The plugin is not listed.' }
+    const ids = Array.isArray(update.restore_signers) ? update.restore_signers.map(id => String(id).toUpperCase()) : []
+    if (!ids.length || !ids.every(id => /^[0-9A-F]{16}$/.test(id)))
+      return { error: 'The signers to restore are not key ids.' }
+    if (!String(update.reason ?? '').trim())
+      return { error: 'Restoring a signer needs a reason.' }
+    const current = (entry.revoked_signers ?? []).map(id => id.toUpperCase())
+    const missing = ids.filter(id => !current.includes(id))
+    if (missing.length)
+      return { error: `Not revoked: ${missing.join(', ')}.` }
+    const base = files[`plugins/${id}.json`] ? JSON.parse(files[`plugins/${id}.json`]) : entry
+    const after = { ...base, revoked_signers: current.filter(signer => !ids.includes(signer)) }
+    if (!after.revoked_signers.length)
+      delete after.revoked_signers
+    files[`plugins/${id}.json`] = `${JSON.stringify(after, null, 2)}\n`
+    summary.push(`restore signer ${ids.join(', ')}`)
+    fields.push({ field: 'revoked_signers', change: 'changed', class: 'maintainer' })
   }
   if (update.delist) {
     if (!entry)

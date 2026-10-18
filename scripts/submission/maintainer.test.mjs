@@ -45,3 +45,14 @@ test('listing a delisted id again keeps what was withdrawn and drops the record'
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('a maintainer restores a revoked signer with a reason', () => {
+  const revoked = { ...entry, revoked_signers: ['F87F466D87CC1150', '3BE1D199B634ED87'] }
+  const result = applyMaintainerUpdate(revoked, blocked, { plugin_id: 'io.x.y', restore_signers: ['3be1d199b634ed87'], reason: 'Revoked by mistake.' })
+  assert.deepEqual(JSON.parse(result.files['plugins/io.x.y.json']).revoked_signers, ['F87F466D87CC1150'])
+  assert.equal(result.summary, 'restore signer 3BE1D199B634ED87')
+  const last = applyMaintainerUpdate({ ...entry, revoked_signers: ['3BE1D199B634ED87'] }, blocked, { plugin_id: 'io.x.y', restore_signers: ['3BE1D199B634ED87'], reason: 'x' })
+  assert.equal('revoked_signers' in JSON.parse(last.files['plugins/io.x.y.json']), false)
+  assert.match(applyMaintainerUpdate(revoked, blocked, { plugin_id: 'io.x.y', restore_signers: ['3BE1D199B634ED87'] }).error, /reason/)
+  assert.match(applyMaintainerUpdate(revoked, blocked, { plugin_id: 'io.x.y', restore_signers: ['AAAAAAAAAAAAAAAA'], reason: 'x' }).error, /Not revoked/)
+})
